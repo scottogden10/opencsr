@@ -1,0 +1,18 @@
+{
+  "id": "population_mismatch",
+  "description": "T14.2.1 population label says Intent-to-Treat Population while the SAP specifies the Response-Evaluable Population as primary and the column N (38) matches the evaluable count.",
+  "ops": [
+    {
+      "op": "set_table_field",
+      "table": "T14.2.1",
+      "field": "population",
+      "value": "Intent-to-Treat Population"
+    }
+  ],
+  "expected_issues": [
+    {
+      "category": "wrong_population",
+      "min_severity": "high"
+    }
+  ]
+}

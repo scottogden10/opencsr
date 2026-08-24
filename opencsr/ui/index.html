@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenCSR Workbench</title>
+<style>
+:root{
+  --bg:#0f1318; --panel:#161c24; --panel2:#1c242e; --line:#28313d;
+  --ink:#e6ebf1; --ink2:#9aa5b4; --ink3:#67717f;
+  --accent:#6d9ee8; --accent2:#3d6cb0;
+  --good:#4fb06d; --warn:#d9a13b; --bad:#d96b5a; --high:#e05252;
+  font-size:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+header{display:flex;align-items:center;gap:14px;padding:10px 18px;
+  border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
+header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.2px}
+header .study{color:var(--ink2)}
+header .spacer{flex:1}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;
+  border:1px solid var(--line);color:var(--ink2);background:var(--panel2)}
+.badge.backend{color:var(--accent);border-color:var(--accent2)}
+nav{display:flex;gap:4px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+nav button{background:none;border:0;color:var(--ink2);padding:7px 13px;border-radius:8px;
+  cursor:pointer;font-size:13.5px;font-weight:550}
+nav button.active{background:var(--panel2);color:var(--ink)}
+nav button:hover{color:var(--ink)}
+main{padding:16px 18px;max-width:1240px;margin:0 auto}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+button.action{background:var(--accent2);border:1px solid var(--accent2);color:#fff;
+  padding:7px 13px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:560}
+button.action:hover{background:var(--accent)}
+button.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+button.ghost:hover{border-color:var(--ink3)}
+button.danger{background:none;border:1px solid var(--line);color:var(--bad)}
+select,input[type=text],textarea{background:var(--panel2);color:var(--ink);
+  border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px}
+textarea{width:100%;min-height:110px;font-family:ui-monospace,Menlo,monospace;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--ink3);text-align:left;font-weight:600;padding:6px 10px;border-bottom:1px solid var(--line);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--panel2)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.panel h2{font-size:13px;margin:0 0 10px;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;font-weight:650}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;border:1px solid transparent}
+.chip.high{color:var(--high);border-color:var(--high)}
+.chip.medium{color:var(--warn);border-color:var(--warn)}
+.chip.low{color:var(--ink2);border-color:var(--ink3)}
+.chip.open{color:var(--warn);border-color:var(--warn)}
+.chip.resolved,.chip.overridden{color:var(--ink3);border-color:var(--line)}
+.chip.ok{color:var(--good);border-color:var(--good)}
+.chip.err{color:var(--bad);border-color:var(--bad)}
+.chip.neutral{color:var(--ink2);border-color:var(--line)}
+.status-pending_review{color:var(--warn)} .status-running{color:var(--accent)}
+.status-closed_accepted,.status-closed_modified{color:var(--good)}
+.status-closed_rejected,.status-failed{color:var(--bad)}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.draft{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:13px 15px;line-height:1.65;font-size:14.5px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.tile{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.tile .v{font-size:20px;font-weight:650;margin-top:2px}
+.tile .l{color:var(--ink3);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
+.tile.pass .v{color:var(--good)} .tile.fail .v{color:var(--bad)}
+details{margin:4px 0}
+details summary{cursor:pointer;color:var(--ink2);font-size:12.5px}
+pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  padding:10px;overflow:auto;font-size:12px;line-height:1.5;max-height:420px}
+.gate{display:flex;gap:8px;align-items:center;padding:3px 0;font-size:13px}
+.muted{color:var(--ink3)} .small{font-size:12px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:980px){.cols{grid-template-columns:1fr}}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--accent2);
+  border-top-color:transparent;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hyp{border-left:3px solid var(--accent2);padding:6px 12px;margin:6px 0;background:var(--panel2);border-radius:0 8px 8px 0}
+a{color:var(--accent);text-decoration:none}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:10px;padding:10px 14px;font-size:13px;max-width:420px;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+</style>
+</head>
+<body>
+<header>
+  <h1>OpenCSR</h1>
+  <span class="study">Study OCS-101 (EMBER-1) · synthetic · non-GxP demo</span>
+  <span class="spacer"></span>
+  <span id="jobIndicator"></span>
+  <span class="badge backend" id="backendBadge">backend: …</span>
+</header>
+<nav id="tabs"></nav>
+<main id="main"></main>
+<div id="toast" class="toast" style="display:none"></div>
+
+<script>
+"use strict";
+const TABS = ["Tasks","Evals","Hill climb","Skills","Documents","Audit"];
+let S = {state:null, tab:"Tasks", taskId:null, taskDetail:null, skillDetail:null, polling:false};
+
+const $ = (h)=>{const d=document.createElement("div");d.innerHTML=h;return d.firstElementChild;};
+const esc = (s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// ids interpolated into onclick handlers must be shape-validated, never trusted
+// (in live mode, claim/evidence ids inside sentence maps are agent-supplied)
+const safeId = (s)=>/^[A-Za-z0-9_.\-]{1,64}$/.test(String(s??""));
+const fmtT = (iso)=>iso?iso.replace("T"," ").slice(0,19):"";
+
+async function api(path, body){
+  const opt = body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{};
+  const r = await fetch(path,opt);
+  return r.json();
+}
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.style.display="block";
+  clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",4200);
+}
+async function refresh(){
+  S.state = await api("/api/state");
+  document.getElementById("backendBadge").textContent = "backend: "+S.state.backend;
+  const running = S.state.jobs.some(j=>j.status==="running");
+  document.getElementById("jobIndicator").innerHTML = running?'<span class="spin"></span> <span class="muted small">working…</span>':"";
+  if(S.taskId){ S.taskDetail = await api("/api/tasks/"+S.taskId); }
+  render();
+  if(running && !S.polling){ S.polling=true; setTimeout(async()=>{S.polling=false; await refresh();},2000); }
+}
+async function act(path, body, msg){
+  const r = await api(path, body);
+  if(r.error) toast("Error: "+r.error); else if(msg) toast(msg);
+  await refresh();
+  return r;
+}
+
+/* ------------------------------- charts ------------------------------- */
+function scoreChart(evals){
+  const pts = [...evals].reverse(); // chronological
+  if(pts.length<1) return '<div class="muted small">No eval runs yet.</div>';
+  const W=680,H=170,P=34;
+  const xs=i=>P+(W-2*P)*(pts.length===1?0.5:i/(pts.length-1));
+  const ys=v=>H-P-(H-2*P)*(v/100);
+  const line=pts.map((e,i)=>`${xs(i)},${ys(e.score)}`).join(" ");
+  const grid=[0,50,100].map(v=>`<line x1="${P}" y1="${ys(v)}" x2="${W-P}" y2="${ys(v)}" stroke="var(--line)" stroke-width="1"/><text x="${P-6}" y="${ys(v)+4}" fill="var(--ink3)" font-size="10" text-anchor="end">${v}</text>`).join("");
+  const dots=pts.map((e,i)=>`<circle cx="${xs(i)}" cy="${ys(e.score)}" r="4.5" fill="${e.hard_gates_passed?"var(--good)":"var(--warn)"}" stroke="var(--bg)" stroke-width="2"><title>${esc(e.label)} — score ${e.score} · gates ${e.hard_gates_passed?"pass":"fail"}</title></circle>`).join("");
+  const last=pts[pts.length-1];
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px">
+    ${grid}
+    <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    ${dots}
+    <text x="${xs(pts.length-1)}" y="${ys(last.score)-10}" fill="var(--ink)" font-size="12" font-weight="600" text-anchor="middle">${last.score}</text>
+  </svg>
+  <div class="muted small">Eval score over runs (dot = one eval run; green dot = all hard gates passed). Hover for labels.</div>`;
+}
+
+/* ------------------------------- tabs --------------------------------- */
+function render(){
+  document.getElementById("tabs").innerHTML = TABS.map(t=>
+    `<button class="${t===S.tab?"active":""}" onclick="setTab('${t}')">${t}</button>`).join("");
+  const m = document.getElementById("main");
+  if(!S.state){ m.innerHTML="Loading…"; return; }
+  if(S.tab==="Tasks") m.innerHTML = S.taskId? viewTaskDetail() : viewTasks();
+  else if(S.tab==="Evals") m.innerHTML = viewEvals();
+  else if(S.tab==="Hill climb") m.innerHTML = viewClimb();
+  else if(S.tab==="Skills") m.innerHTML = viewSkills();
+  else if(S.tab==="Documents") m.innerHTML = viewDocs();
+  else m.innerHTML = viewAudit();
+}
+function setTab(t){ S.tab=t; if(t!=="Tasks"){S.taskId=null;} render(); }
+async function openTask(id){ S.tab="Tasks"; S.taskId=id; S.taskDetail=await api("/api/tasks/"+id); render(); }
+
+/* ------------------------------- tasks -------------------------------- */
+function viewTasks(){
+  const st=S.state;
+  const faultOpts = ['<option value="">clean run (no fault)</option>']
+    .concat(st.faults.map(f=>`<option value="${f}">seeded fault: ${f}</option>`)).join("");
+  const rows = st.tasks.map(t=>{
+    const r=t.result||{};
+    return `<tr class="click" onclick="openTask('${t.id}')">
+      <td class="mono">${t.id}</td>
+      <td>${esc(t.title)}${t.config&&t.config.fault_id?` <span class="chip err">fault: ${t.config.fault_id}</span>`:""}</td>
+      <td><span class="status-${t.status}">${t.status}</span></td>
+      <td>${r.blocking===true?'<span class="chip err">blocked</span>':r.blocking===false?'<span class="chip ok">clear</span>':""}</td>
+      <td>${r.revisions??""}</td>
+      <td class="muted small">${fmtT(t.created_at)}</td></tr>`;}).join("");
+  return `
+  <div class="toolbar">
+    <button class="action" onclick="runTask('efficacy')">Run efficacy task (§11.4.1)</button>
+    <select id="faultSel">${faultOpts}</select>
+    <button class="action" onclick="runTask('narrative')">Run narrative task (§12.3.2)</button>
+    <span class="spacer" style="flex:1"></span>
+    <button class="danger" onclick="resetDemo()">Reset demo</button>
+  </div>
+  <div class="panel"><h2>Tasks</h2>
+    <table><tr><th>id</th><th>title</th><th>status</th><th>gate</th><th>rev</th><th>created</th></tr>${rows||""}</table>
+    ${st.tasks.length?"":'<div class="muted" style="padding:10px">No tasks yet — run one above. Each task freezes a source snapshot, runs the agent pipeline (evidence → claims → draft → validate → QC), and stops for human review.</div>'}
+  </div>`;
+}
+async function runTask(type){
+  const fault = document.getElementById("faultSel")?.value || "";
+  await act("/api/tasks",{type, fault_id:fault||null},"Task started ("+type+(fault?", fault "+fault:"")+")");
+}
+async function resetDemo(){
+  if(!confirm("Reset demo? Clears the ledger and restores all skills to v1."))return;
+  S.taskId=null; await act("/api/reset",{},"Demo reset: ledger cleared, skills back to v1");
+}
+
+function viewTaskDetail(){
+  const d=S.taskDetail; if(!d||!d.task) return "Loading…";
+  const t=d.task, r=t.result||{};
+  const prop=d.proposals[d.proposals.length-1];
+  const claimById={}; d.claims.forEach(c=>claimById[c.id]=c);
+  const evById={}; d.evidence.forEach(e=>evById[e.id]=e);
+
+  const sentences=(prop?.sentence_map||[]).map(s=>{
+    const ids=(s.claim_ids||[]).filter(safeId);
+    return `<div style="margin:4px 0">${esc(s.sentence)}
+      <span class="small">${ids.map(i=>`<a onclick="document.getElementById('c_${i}').open=true;document.getElementById('c_${i}').scrollIntoView({behavior:'smooth'})" class="mono">${esc(i)}</a>`).join(" ")||'<span class="chip neutral">no claims</span>'}</span></div>`;
+  }).join("");
+
+  const claims=d.claims.map(c=>`
+    <details id="c_${c.id}"><summary><span class="mono">${c.id}</span> · ${c.claim_type} · <span class="chip neutral">${c.support_class}</span> ${esc(c.text).slice(0,110)}</summary>
+      <pre>${esc(JSON.stringify({dimensions:c.dimensions,value:c.value},null,1))}</pre>
+      <div class="small muted">evidence:</div>
+      ${(c.evidence_ids||[]).map(id=>{const e=evById[id];return e?`<details><summary class="mono small">${esc(id)} · ${esc(e.locator)} ${e.verified?'<span class="chip ok">verified</span>':'<span class="chip err">mismatch</span>'}</summary><pre>${esc(JSON.stringify(e.fragment,null,1))}</pre></details>`:`<span class="mono small">${esc(id)}</span>`;}).join("")}
+    </details>`).join("");
+
+  const issues=d.issues.map(i=>`
+    <div style="padding:5px 0;border-bottom:1px solid var(--line)">
+      <span class="chip ${i.severity}">${i.severity}</span>
+      <span class="chip ${i.status}">${i.status}</span>
+      <b>${i.category}</b> <span class="muted small">by ${i.raised_by}</span><br>
+      <span class="small">${esc(i.description)}</span>
+    </div>`).join("");
+
+  const runs=d.runs.map(x=>`<tr><td>${x.agent}</td><td>${x.backend}</td>
+    <td><span class="chip ${x.status==="completed"?"ok":"err"}">${x.status}</span></td>
+    <td>${(x.detail&&x.detail.usage&&(x.detail.usage.tool_calls??""))||""}</td>
+    <td class="small muted">${esc((x.detail&&x.detail.notes)||"").slice(0,90)}</td></tr>`).join("");
+
+  const fb=d.feedback.map(f=>`<div class="hyp"><b>${f.decision}</b> · ${f.reason_code} · scope: ${f.scope} · <span class="muted">${f.actor}</span><br><span class="small">${esc(f.comment)}</span></div>`).join("");
+
+  const pending = t.status==="pending_review";
+  const decisionPanel = pending? `
+    <div class="panel"><h2>Human decision</h2>
+      <div class="small muted" style="margin-bottom:8px">${r.blocking?'⚠ Unresolved high-severity issues — acceptance would override open findings.':'No blocking issues.'}</div>
+      <textarea id="finalText">${esc(prop?.text||"")}</textarea>
+      <div class="toolbar" style="margin-top:8px">
+        <select id="reason">
+          ${["accepted_as_proposed","interpretation_too_strong","wrong_number","wrong_population","style_convention","missing_content","terminology","evidence_insufficient","other"].map(x=>`<option>${x}</option>`).join("")}
+        </select>
+        <select id="scope"><option>this_instance</option><option>this_study</option><option>organization_wide</option></select>
+        <input type="text" id="comment" placeholder="comment / teaching note" style="flex:1;min-width:220px">
+      </div>
+      <div class="toolbar">
+        <button class="action" onclick="decide('accepted')">Accept</button>
+        <button class="action" onclick="decide('modified')">Accept with modifications</button>
+        <button class="danger" onclick="decide('rejected')">Reject</button>
+        <button class="ghost" onclick="simReview()">Simulate governance reviewer</button>
+      </div>
+    </div>`:"";
+
+  return `
+  <div class="toolbar"><button class="ghost" onclick="S.taskId=null;render()">← back to tasks</button>
+    <span class="mono muted">${t.id}</span> <span class="status-${t.status}">${t.status}</span>
+    ${t.config&&t.config.fault_id?`<span class="chip err">fault: ${t.config.fault_id}</span>`:""}</div>
+  <div class="panel"><h2>Proposal · ${esc(t.target_node)} ${prop?`· <span class="chip neutral">${prop.status}</span> · revision ${prop.revision}`:""}</h2>
+    <div class="draft">${esc(prop?.text||"(no draft)")}</div>
+    <details style="margin-top:8px"><summary>Sentence → claim map</summary>${sentences}</details>
+  </div>
+  ${decisionPanel}
+  <div class="cols">
+    <div class="panel"><h2>Claims (${d.claims.length})</h2>${claims||'<span class="muted">none</span>'}</div>
+    <div class="panel"><h2>Issues (${d.issues.length})</h2>${issues||'<span class="muted">none</span>'}</div>
+  </div>
+  <div class="cols">
+    <div class="panel"><h2>Agent runs</h2><table><tr><th>agent</th><th>backend</th><th>status</th><th>tools</th><th>notes</th></tr>${runs}</table></div>
+    <div class="panel"><h2>Feedback</h2>${fb||'<span class="muted">none yet</span>'}
+      <h2 style="margin-top:14px">Result</h2><pre>${esc(JSON.stringify(r,null,1))}</pre></div>
+  </div>
+  <div class="panel"><h2>Task audit trail</h2>
+    <table>${d.audit.map(a=>`<tr><td class="muted small">${fmtT(a.created_at)}</td><td>${a.event_type}</td><td class="small mono">${esc(JSON.stringify(a.payload)).slice(0,140)}</td></tr>`).join("")}</table>
+  </div>`;
+}
+async function decide(decision){
+  const body={task_id:S.taskId, decision,
+    reason_code:document.getElementById("reason").value,
+    scope:document.getElementById("scope").value,
+    comment:document.getElementById("comment").value,
+    final_text:document.getElementById("finalText").value};
+  await act("/api/review",body,"Decision recorded: "+decision);
+}
+async function simReview(){
+  const r=await act("/api/simulate_review",{task_id:S.taskId},"");
+  if(r.decision) toast("Governance reviewer: "+r.decision+(r.comment?" — "+r.comment.slice(0,140):""));
+}
+
+/* ------------------------------- evals -------------------------------- */
+function viewEvals(){
+  const evals=S.state.evals;
+  const latest=evals[0];
+  let tiles="", gates="";
+  if(latest){
+    const m=latest.metrics;
+    const tile=(l,v,ok)=>`<div class="tile ${ok===undefined?"":ok?"pass":"fail"}"><div class="l">${l}</div><div class="v">${v}</div></div>`;
+    tiles = `<div class="kv">
+      ${tile("score",latest.score)}
+      ${tile("numeric accuracy",m.numeric_accuracy, m.numeric_accuracy>=1)}
+      ${tile("provenance",m.provenance_coverage, m.provenance_coverage>=1)}
+      ${tile("fault recall",m.fault_recall_high, m.fault_recall_high>=1)}
+      ${tile("faults blocked",m.faults_blocked, m.faults_blocked>=1)}
+      ${tile("1st-pass interpretive flags",m.interpretive_flags_first_pass, m.interpretive_flags_first_pass===0)}
+      ${tile("1st-pass style ok",m.style_ok_first_pass, !!m.style_ok_first_pass)}
+      ${tile("1st-pass missing content",m.missing_required_first_pass, m.missing_required_first_pass===0)}
+      ${tile("efficacy revisions",m.efficacy_revisions, m.efficacy_revisions===0)}
+      ${tile("narrative 1st-pass",m.narrative_first_pass_coverage, m.narrative_first_pass_coverage>=1)}
+      ${tile("human edit distance",m.human_edit_distance, m.human_edit_distance===0)}
+      ${tile("perm. violations executed",m.permission_violations_executed, m.permission_violations_executed===0)}
+    </div>`;
+    gates = Object.entries(latest.report.hard_gates).map(([g,ok])=>
+      `<div class="gate"><span class="chip ${ok?"ok":"err"}">${ok?"PASS":"FAIL"}</span> ${g}</div>`).join("");
+  }
+  const rows=evals.map(e=>`<tr><td class="muted small">${fmtT(e.created_at)}</td>
+    <td>${esc(e.label)}</td><td><b>${e.score}</b></td>
+    <td>${e.hard_gates_passed?'<span class="chip ok">gates pass</span>':'<span class="chip err">gates fail</span>'}</td>
+    <td class="small mono">${esc(JSON.stringify(e.config.skills))}</td></tr>`).join("");
+  return `
+  <div class="toolbar"><button class="action" onclick="act('/api/evals/run',{label:'manual'},'Eval corpus started')">Run eval corpus</button>
+  <span class="muted small">Replays: gold efficacy task · 6 seeded-fault tasks · narrative · capability probe — in a throwaway ledger.</span></div>
+  <div class="panel"><h2>Score over eval runs</h2>${scoreChart(evals)}</div>
+  ${latest?`<div class="panel"><h2>Latest: ${esc(latest.label)}</h2>${tiles}<div style="margin-top:12px">${gates}</div></div>`:""}
+  <div class="panel"><h2>History</h2><table><tr><th>time</th><th>label</th><th>score</th><th>hard gates</th><th>skill versions</th></tr>${rows}</table></div>`;
+}
+
+/* ------------------------------ hill climb ----------------------------- */
+function viewClimb(){
+  const ev=S.state.skill_events;
+  const rows=ev.map(e=>`
+    <div style="padding:8px 0;border-bottom:1px solid var(--line)">
+      <span class="chip ${e.action==="promoted"?"ok":"err"}">${e.action}</span>
+      <b>${e.skill}</b> → v${e.version} <span class="muted small">${fmtT(e.created_at)} · eval ${e.eval_id||""}</span>
+      ${e.hypothesis?`<div class="hyp small">
+        <b>problem:</b> ${esc(e.hypothesis.problem)}<br>
+        <b>change:</b> ${esc(e.hypothesis.change)}<br>
+        <b>predicted effect:</b> ${esc(e.hypothesis.predicted_effect)}</div>`:""}
+    </div>`).join("");
+  return `
+  <div class="toolbar">
+    <button class="action" onclick="act('/api/hillclimb/run',{rounds:3},'Hill climb started')">Run hill climb</button>
+    <span class="muted small">baseline eval → skill-smith proposes rule candidates from feedback + failures → each candidate replays the full corpus → promoted only if every hard gate holds and the score improves.</span>
+  </div>
+  <div class="panel"><h2>Score trajectory</h2>${scoreChart(S.state.evals)}</div>
+  <div class="panel"><h2>Skill change history (promotions & rejections)</h2>${rows||'<span class="muted">No skill changes yet — run tasks, review them, then run the hill climb.</span>'}</div>`;
+}
+
+/* ------------------------------- skills -------------------------------- */
+function viewSkills(){
+  const cur=S.state.skills.map(s=>`<tr class="click" onclick="openSkill('${s.name}')">
+    <td><b>${s.name}</b></td><td>v${s.version}</td><td class="muted small">${esc(s.description)}</td></tr>`).join("");
+  let detail="";
+  if(S.skillDetail){
+    const d=S.skillDetail;
+    detail=`<div class="panel"><h2>${d.current.name} · v${d.current.version}</h2>
+      <pre>${esc(d.current.body)}</pre>
+      ${d.versions.length?`<h2 style="margin-top:12px">Version history</h2>`+d.versions.map(v=>`<details><summary>${v.file}</summary><pre>${esc(v.content)}</pre></details>`).join(""):""}
+    </div>`;
+  }
+  return `<div class="panel"><h2>Clinical skills (versioned, governed)</h2>
+    <table><tr><th>skill</th><th>version</th><th>description</th></tr>${cur}</table>
+    <div class="muted small" style="margin-top:8px">Skills compile into agent system prompts at run time; a promotion becomes a new immutable agent version on the next run (Managed Agents backend updates the persisted agent object).</div>
+  </div>${detail}`;
+}
+async function openSkill(name){ S.skillDetail=await api("/api/skills/"+name); render(); }
+
+/* ------------------------------ documents ------------------------------ */
+function viewDocs(){
+  const docs=S.state.documents;
+  const nodes=Object.keys(docs);
+  if(!nodes.length) return '<div class="panel"><h2>Authoritative document versions</h2><div class="muted">No accepted changes yet. Accept a proposal to create version 1 of a section.</div></div>';
+  return nodes.map(n=>`<div class="panel"><h2>${esc(n)}</h2>
+    ${docs[n].map(v=>`<details ${v.version===docs[n].length?"open":""}><summary>v${v.version} · ${fmtT(v.updated_at)} · by ${esc(v.updated_by)} · task <a onclick="openTask('${v.task_id}')" class="mono">${v.task_id}</a></summary>
+    <div class="draft" style="margin-top:6px">${esc(v.text)}</div></details>`).join("")}
+  </div>`).join("");
+}
+
+/* ------------------------------- audit --------------------------------- */
+function viewAudit(){
+  const rows=S.state.audit.map(a=>`<tr>
+    <td class="muted small">${fmtT(a.created_at)}</td>
+    <td>${a.event_type}</td>
+    <td class="mono small">${a.task_id?`<a onclick="openTask('${a.task_id}')">${a.task_id}</a>`:""}</td>
+    <td class="small mono">${esc(JSON.stringify(a.actor_chain))}</td>
+    <td class="small mono">${esc(JSON.stringify(a.payload)).slice(0,160)}</td></tr>`).join("");
+  return `<div class="panel"><h2>Append-only audit trail (latest 120)</h2>
+    <table><tr><th>time</th><th>event</th><th>task</th><th>actor chain</th><th>payload</th></tr>${rows}</table></div>`;
+}
+
+refresh(); setInterval(()=>{ if(!S.state) return; const running=S.state.jobs.some(j=>j.status==="running"); if(!running) refresh(); }, 10000);
+</script>
+</body>
+</html>

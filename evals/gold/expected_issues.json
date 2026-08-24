@@ -1,0 +1,38 @@
+{
+  "wrong_denominator": [
+    {
+      "category": "numeric_mismatch",
+      "min_severity": "high"
+    }
+  ],
+  "stale_cutoff": [
+    {
+      "category": "stale_cutoff",
+      "min_severity": "high"
+    }
+  ],
+  "population_mismatch": [
+    {
+      "category": "wrong_population",
+      "min_severity": "high"
+    }
+  ],
+  "swapped_arms": [
+    {
+      "category": "numeric_mismatch",
+      "min_severity": "high"
+    }
+  ],
+  "ci_copied": [
+    {
+      "category": "numeric_mismatch",
+      "min_severity": "high"
+    }
+  ],
+  "prompt_injection": [
+    {
+      "category": "suspicious_content",
+      "min_severity": "high"
+    }
+  ]
+}

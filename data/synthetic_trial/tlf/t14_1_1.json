@@ -1,0 +1,82 @@
+{
+  "table_id": "T14.1.1",
+  "protocol": "OCS-101",
+  "title": "Summary of Analysis Populations",
+  "population": "All Enrolled Subjects",
+  "columns": [
+    {
+      "id": "arm_100",
+      "label": "Examplinib 100 mg (N=40)",
+      "N": 40
+    },
+    {
+      "id": "arm_50",
+      "label": "Examplinib 50 mg (N=40)",
+      "N": 40
+    }
+  ],
+  "rows": [
+    {
+      "id": "enrolled",
+      "label": "Enrolled (Intent-to-Treat), n",
+      "cells": {
+        "arm_100": {
+          "n": 40,
+          "display": "40"
+        },
+        "arm_50": {
+          "n": 40,
+          "display": "40"
+        }
+      }
+    },
+    {
+      "id": "safety",
+      "label": "Safety Population, n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 39,
+          "pct": 97.5,
+          "display": "39 (97.5)"
+        },
+        "arm_50": {
+          "n": 40,
+          "pct": 100.0,
+          "display": "40 (100.0)"
+        }
+      }
+    },
+    {
+      "id": "response_evaluable",
+      "label": "Response-Evaluable Population, n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 38,
+          "pct": 95.0,
+          "display": "38 (95.0)"
+        },
+        "arm_50": {
+          "n": 37,
+          "pct": 92.5,
+          "display": "37 (92.5)"
+        }
+      }
+    }
+  ],
+  "footnotes": [
+    {
+      "id": "a",
+      "text": "Safety Population: all subjects who received at least one dose of examplinib."
+    },
+    {
+      "id": "b",
+      "text": "Response-Evaluable Population: all subjects who received at least one dose of examplinib and had measurable disease at baseline per RECIST v1.1."
+    },
+    {
+      "id": "c",
+      "text": "Data cutoff date: 01MAY2026."
+    }
+  ],
+  "source": "Source: ADSL. Program: t_pop.sas, run 26JUN2026 13:41.",
+  "data_cutoff": "2026-05-01"
+}

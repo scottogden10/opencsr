@@ -1,0 +1,37 @@
+{
+  "arms": {
+    "canonical": ["Examplinib 100 mg", "Examplinib 50 mg"],
+    "forbidden_variants": ["100mg arm", "Arm A", "Arm B", "high dose", "low dose"]
+  },
+  "populations": {
+    "canonical": [
+      "Intent-to-Treat Population",
+      "Safety Population",
+      "Response-Evaluable Population"
+    ],
+    "aliases": {
+      "ITT": "Intent-to-Treat Population",
+      "FAS": null,
+      "efficacy-evaluable": "Response-Evaluable Population"
+    }
+  },
+  "endpoints": {
+    "confirmed_orr": "confirmed objective response rate (ORR)",
+    "bor": "best confirmed overall response"
+  },
+  "numeric_conventions": {
+    "percent_decimals": 1,
+    "ci_decimals": 1,
+    "require_n_over_N": true,
+    "no_percent_below_denominator": 20
+  },
+  "interpretive_phrases_requiring_approval": [
+    "clinically meaningful",
+    "clinically significant",
+    "well tolerated",
+    "favorable safety profile",
+    "promising",
+    "robust response",
+    "encouraging"
+  ]
+}

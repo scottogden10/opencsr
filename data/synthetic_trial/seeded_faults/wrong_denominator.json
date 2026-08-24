@@ -1,0 +1,28 @@
+{
+  "id": "wrong_denominator",
+  "description": "ORR percentage in T14.2.1 computed against the ITT N (40) instead of the Response-Evaluable N (38). n/N and displayed % disagree.",
+  "ops": [
+    {
+      "op": "set_cell_field",
+      "table": "T14.2.1",
+      "row_id": "orr_confirmed",
+      "col": "arm_100",
+      "field": "pct",
+      "value": 40.0
+    },
+    {
+      "op": "set_cell_field",
+      "table": "T14.2.1",
+      "row_id": "orr_confirmed",
+      "col": "arm_100",
+      "field": "display",
+      "value": "16 (40.0) [26.3, 59.2]"
+    }
+  ],
+  "expected_issues": [
+    {
+      "category": "numeric_mismatch",
+      "min_severity": "high"
+    }
+  ]
+}

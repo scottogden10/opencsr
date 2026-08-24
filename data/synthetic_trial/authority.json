@@ -1,0 +1,49 @@
+{
+  "description": "Authority rules: which sources may support which claim types. Conflicts between permitted sources are first-class issues requiring human adjudication, not silent smoothing.",
+  "rules": [
+    {
+      "claim_type": "primary_objective",
+      "permitted_sources": ["protocol"],
+      "conflict_behavior": "escalate_to_study_lead"
+    },
+    {
+      "claim_type": "endpoint_definition",
+      "permitted_sources": ["sap", "protocol"],
+      "precedence_note": "The approved SAP provides the operational analysis definition; the protocol declares the endpoint. Disagreement on operational definition follows the SAP (protocol section 9.1) but must still be surfaced as an issue.",
+      "conflict_behavior": "require_statistician_resolution"
+    },
+    {
+      "claim_type": "analysis_population_definition",
+      "permitted_sources": ["sap"],
+      "conflict_behavior": "require_statistician_resolution"
+    },
+    {
+      "claim_type": "efficacy_result",
+      "permitted_sources": ["tlf"],
+      "note": "Reported estimates come from final TLF cells only. Dataset recounts are cross-checks, not primary sources.",
+      "conflict_behavior": "require_statistician_resolution"
+    },
+    {
+      "claim_type": "safety_result",
+      "permitted_sources": ["tlf"],
+      "conflict_behavior": "require_statistician_resolution"
+    },
+    {
+      "claim_type": "subject_narrative_fact",
+      "permitted_sources": ["dataset"],
+      "note": "Narrative facts come from ADSL/ADAE records for the subject.",
+      "conflict_behavior": "require_pv_resolution"
+    },
+    {
+      "claim_type": "data_cutoff",
+      "permitted_sources": ["sap", "tlf"],
+      "conflict_behavior": "require_statistician_resolution"
+    },
+    {
+      "claim_type": "interpretive",
+      "permitted_sources": [],
+      "note": "Interpretive characterizations (e.g. clinical meaningfulness) are never supported by sources alone; they require accountable human approval and are flagged unless pre-approved language exists.",
+      "conflict_behavior": "require_clinician_approval"
+    }
+  ]
+}

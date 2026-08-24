@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+opencsr.db
+opencsr_eval_*.db
+demo_summary.json
+.opencsr/
+nohup.out

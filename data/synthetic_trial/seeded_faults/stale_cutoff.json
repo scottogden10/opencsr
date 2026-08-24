@@ -1,0 +1,24 @@
+{
+  "id": "stale_cutoff",
+  "description": "T14.2.1 footnote cites a data cutoff of 15FEB2026, conflicting with the SAP-specified cutoff of 01 May 2026 (stale TLF run).",
+  "ops": [
+    {
+      "op": "set_footnote",
+      "table": "T14.2.1",
+      "footnote_id": "d",
+      "text": "Data cutoff date: 15FEB2026."
+    },
+    {
+      "op": "set_table_field",
+      "table": "T14.2.1",
+      "field": "data_cutoff",
+      "value": "2026-02-15"
+    }
+  ],
+  "expected_issues": [
+    {
+      "category": "stale_cutoff",
+      "min_severity": "high"
+    }
+  ]
+}

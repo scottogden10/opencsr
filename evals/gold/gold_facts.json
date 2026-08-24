@@ -1,0 +1,65 @@
+{
+  "study_id": "OCS-101",
+  "data_cutoff": "2026-05-01",
+  "primary_population": "Response-Evaluable Population",
+  "primary_table": "T14.2.1",
+  "orr_confirmed": {
+    "arm_100": {
+      "numerator": 16,
+      "denominator": 38,
+      "estimate_pct": 42.1,
+      "ci_level": 95,
+      "ci_lower_pct": 26.3,
+      "ci_upper_pct": 59.2,
+      "method": "Clopper-Pearson exact"
+    },
+    "arm_50": {
+      "numerator": 10,
+      "denominator": 37,
+      "estimate_pct": 27.0,
+      "ci_level": 95,
+      "ci_lower_pct": 13.8,
+      "ci_upper_pct": 44.1,
+      "method": "Clopper-Pearson exact"
+    }
+  },
+  "cbor_counts": {
+    "arm_100": {
+      "CR": 3,
+      "PR": 13,
+      "SD": 12,
+      "PD": 8,
+      "NE": 2
+    },
+    "arm_50": {
+      "CR": 1,
+      "PR": 9,
+      "SD": 14,
+      "PD": 10,
+      "NE": 3
+    }
+  },
+  "evaluable_n": {
+    "arm_100": 38,
+    "arm_50": 37
+  },
+  "narrative_subject": {
+    "usubjid": "OCS-101-004-1002",
+    "age": 51,
+    "sex": "F",
+    "arm": "Examplinib 100 mg",
+    "event": "Pneumonitis",
+    "grade": 5,
+    "serious": true,
+    "outcome": "FATAL",
+    "action": "DRUG WITHDRAWN",
+    "causality": "RELATED",
+    "onset_study_day": 96,
+    "death_date": "2025-10-26"
+  },
+  "sae_subject": {
+    "usubjid": "OCS-101-005-1003",
+    "event": "Pneumonitis",
+    "grade": 3
+  }
+}

@@ -1,0 +1,5 @@
+# The offline demo, workbench, tests, and evals need NOTHING beyond the
+# Python 3.10+ standard library.
+#
+# Only the live Claude Managed Agents backend needs:
+anthropic>=0.92.0

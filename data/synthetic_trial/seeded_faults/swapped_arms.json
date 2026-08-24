@@ -1,0 +1,21 @@
+{
+  "id": "swapped_arms",
+  "description": "Confirmed ORR results for the two arms are transposed in T14.2.1; a recount from ADRS disagrees with the table.",
+  "ops": [
+    {
+      "op": "swap_cells",
+      "table": "T14.2.1",
+      "row_id": "orr_confirmed",
+      "cols": [
+        "arm_100",
+        "arm_50"
+      ]
+    }
+  ],
+  "expected_issues": [
+    {
+      "category": "numeric_mismatch",
+      "min_severity": "high"
+    }
+  ]
+}

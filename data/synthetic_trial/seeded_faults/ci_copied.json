@@ -1,0 +1,36 @@
+{
+  "id": "ci_copied",
+  "description": "The 95% CI for the 50 mg arm was copied from the 100 mg arm; recomputation with the exact method disagrees.",
+  "ops": [
+    {
+      "op": "set_cell_field",
+      "table": "T14.2.1",
+      "row_id": "orr_confirmed",
+      "col": "arm_50",
+      "field": "ci_lower",
+      "value": 26.3
+    },
+    {
+      "op": "set_cell_field",
+      "table": "T14.2.1",
+      "row_id": "orr_confirmed",
+      "col": "arm_50",
+      "field": "ci_upper",
+      "value": 59.2
+    },
+    {
+      "op": "set_cell_field",
+      "table": "T14.2.1",
+      "row_id": "orr_confirmed",
+      "col": "arm_50",
+      "field": "display",
+      "value": "10 (27.0) [26.3, 59.2]"
+    }
+  ],
+  "expected_issues": [
+    {
+      "category": "numeric_mismatch",
+      "min_severity": "high"
+    }
+  ]
+}

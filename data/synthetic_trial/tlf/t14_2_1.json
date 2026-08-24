@@ -1,0 +1,144 @@
+{
+  "table_id": "T14.2.1",
+  "protocol": "OCS-101",
+  "title": "Analysis of Objective Response Rate (Confirmed) per RECIST v1.1",
+  "population": "Response-Evaluable Population",
+  "columns": [
+    {
+      "id": "arm_100",
+      "label": "Examplinib 100 mg (N=38)",
+      "N": 38
+    },
+    {
+      "id": "arm_50",
+      "label": "Examplinib 50 mg (N=37)",
+      "N": 37
+    }
+  ],
+  "rows": [
+    {
+      "id": "bor_cr",
+      "label": "Complete response (CR), n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 3,
+          "pct": 7.9,
+          "display": "3 (7.9)"
+        },
+        "arm_50": {
+          "n": 1,
+          "pct": 2.7,
+          "display": "1 (2.7)"
+        }
+      }
+    },
+    {
+      "id": "bor_pr",
+      "label": "Partial response (PR), n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 13,
+          "pct": 34.2,
+          "display": "13 (34.2)"
+        },
+        "arm_50": {
+          "n": 9,
+          "pct": 24.3,
+          "display": "9 (24.3)"
+        }
+      }
+    },
+    {
+      "id": "bor_sd",
+      "label": "Stable disease (SD), n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 12,
+          "pct": 31.6,
+          "display": "12 (31.6)"
+        },
+        "arm_50": {
+          "n": 14,
+          "pct": 37.8,
+          "display": "14 (37.8)"
+        }
+      }
+    },
+    {
+      "id": "bor_pd",
+      "label": "Progressive disease (PD), n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 8,
+          "pct": 21.1,
+          "display": "8 (21.1)"
+        },
+        "arm_50": {
+          "n": 10,
+          "pct": 27.0,
+          "display": "10 (27.0)"
+        }
+      }
+    },
+    {
+      "id": "bor_ne",
+      "label": "Not evaluable (NE), n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 2,
+          "pct": 5.3,
+          "display": "2 (5.3)"
+        },
+        "arm_50": {
+          "n": 3,
+          "pct": 8.1,
+          "display": "3 (8.1)"
+        }
+      }
+    },
+    {
+      "id": "orr_confirmed",
+      "label": "Objective response rate (confirmed CR+PR), n (%) [95% CI] a,b",
+      "cells": {
+        "arm_100": {
+          "n": 16,
+          "N": 38,
+          "pct": 42.1,
+          "ci_lower": 26.3,
+          "ci_upper": 59.2,
+          "ci_level": 95,
+          "display": "16 (42.1) [26.3, 59.2]"
+        },
+        "arm_50": {
+          "n": 10,
+          "N": 37,
+          "pct": 27.0,
+          "ci_lower": 13.8,
+          "ci_upper": 44.1,
+          "ci_level": 95,
+          "display": "10 (27.0) [13.8, 44.1]"
+        }
+      }
+    }
+  ],
+  "footnotes": [
+    {
+      "id": "a",
+      "text": "95% CI computed using the Clopper-Pearson exact method."
+    },
+    {
+      "id": "b",
+      "text": "Responses confirmed by a subsequent assessment at least 28 days after the initial response, per RECIST v1.1."
+    },
+    {
+      "id": "c",
+      "text": "Response-Evaluable Population: all subjects who received at least one dose of examplinib and had measurable disease at baseline per RECIST v1.1."
+    },
+    {
+      "id": "d",
+      "text": "Data cutoff date: 01MAY2026."
+    }
+  ],
+  "source": "Source: ADSL, ADRS. Program: t_orr.sas, run 26JUN2026 14:02.",
+  "data_cutoff": "2026-05-01"
+}

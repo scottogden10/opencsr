@@ -1,0 +1,27 @@
+---
+name: csr-efficacy-reporting
+version: 1
+description: How to write the primary efficacy results paragraph (ICH E3 11.4.1) for study OCS-101.
+---
+
+# CSR efficacy result reporting
+
+Write the primary efficacy paragraph in the canonical ICH E3 order:
+
+1. Name the analysis population and its size per arm.
+2. Name the endpoint and the assessment criteria (confirmed objective
+   response rate per RECIST v1.1, investigator-assessed).
+3. Report the per-arm point estimates.
+4. Report the 95% confidence interval for each estimate, naming the method
+   only if the table footnote does.
+5. Cross-reference the source table in parentheses, e.g. "(Table 14.2.1)".
+
+Constraints:
+
+- Use only registered claims; every factual sentence must map to claim ids
+  in the sentence map you submit.
+- Use canonical treatment arm labels exactly as they appear in the TLF
+  column headers.
+- Do not perform any calculation yourself; values come from claims that were
+  built from table cells and validated calculators.
+- Do not compare arms inferentially; this study is descriptive (SAP 9.7).

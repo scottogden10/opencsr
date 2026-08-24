@@ -1,0 +1,148 @@
+{
+  "table_id": "T14.3.1",
+  "protocol": "OCS-101",
+  "title": "Overview of Treatment-Emergent Adverse Events",
+  "population": "Safety Population",
+  "columns": [
+    {
+      "id": "arm_100",
+      "label": "Examplinib 100 mg (N=39)",
+      "N": 39
+    },
+    {
+      "id": "arm_50",
+      "label": "Examplinib 50 mg (N=40)",
+      "N": 40
+    }
+  ],
+  "rows": [
+    {
+      "id": "any_teae",
+      "label": "Any TEAE, n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 37,
+          "pct": 94.9,
+          "display": "37 (94.9)"
+        },
+        "arm_50": {
+          "n": 37,
+          "pct": 92.5,
+          "display": "37 (92.5)"
+        }
+      }
+    },
+    {
+      "id": "related_teae",
+      "label": "Treatment-related TEAE, n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 33,
+          "pct": 84.6,
+          "display": "33 (84.6)"
+        },
+        "arm_50": {
+          "n": 31,
+          "pct": 77.5,
+          "display": "31 (77.5)"
+        }
+      }
+    },
+    {
+      "id": "grade3plus_teae",
+      "label": "Grade >= 3 TEAE, n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 14,
+          "pct": 35.9,
+          "display": "14 (35.9)"
+        },
+        "arm_50": {
+          "n": 17,
+          "pct": 42.5,
+          "display": "17 (42.5)"
+        }
+      }
+    },
+    {
+      "id": "serious_teae",
+      "label": "Serious TEAE, n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 6,
+          "pct": 15.4,
+          "display": "6 (15.4)"
+        },
+        "arm_50": {
+          "n": 5,
+          "pct": 12.5,
+          "display": "5 (12.5)"
+        }
+      }
+    },
+    {
+      "id": "teae_interrupt",
+      "label": "TEAE leading to dose interruption or reduction, n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 15,
+          "pct": 38.5,
+          "display": "15 (38.5)"
+        },
+        "arm_50": {
+          "n": 17,
+          "pct": 42.5,
+          "display": "17 (42.5)"
+        }
+      }
+    },
+    {
+      "id": "teae_discontinuation",
+      "label": "TEAE leading to discontinuation of study drug, n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 3,
+          "pct": 7.7,
+          "display": "3 (7.7)"
+        },
+        "arm_50": {
+          "n": 2,
+          "pct": 5.0,
+          "display": "2 (5.0)"
+        }
+      }
+    },
+    {
+      "id": "teae_death",
+      "label": "TEAE leading to death, n (%)",
+      "cells": {
+        "arm_100": {
+          "n": 1,
+          "pct": 2.6,
+          "display": "1 (2.6)"
+        },
+        "arm_50": {
+          "n": 0,
+          "pct": 0.0,
+          "display": "0 (0.0)"
+        }
+      }
+    }
+  ],
+  "footnotes": [
+    {
+      "id": "a",
+      "text": "TEAE: treatment-emergent adverse event, defined as any adverse event with onset on or after the first dose of examplinib."
+    },
+    {
+      "id": "b",
+      "text": "Subjects are counted once per category at maximum severity. MedDRA v27.0; CTCAE v5.0."
+    },
+    {
+      "id": "c",
+      "text": "Data cutoff date: 01MAY2026."
+    }
+  ],
+  "source": "Source: ADSL, ADAE. Program: t_aeov.sas, run 26JUN2026 14:17.",
+  "data_cutoff": "2026-05-01"
+}
