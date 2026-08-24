@@ -31,6 +31,11 @@ python3 serve.py           # then open http://127.0.0.1:8734
 
 That's it — Python 3.10+ standard library only.
 
+> The demo *intentionally* promotes skill versions (that's Act 4), so
+> `skills/*/SKILL.md` will show as modified afterward. Reset with
+> `git checkout -- skills` or
+> `python3 -c "from opencsr.skills import reset_skills; reset_skills()"`.
+
 ### What the demo does
 
 | Act | What happens | What it proves |
@@ -63,7 +68,8 @@ python3 -m venv .venv && .venv/bin/pip install anthropic
 # give it a key — either an environment variable...
 export ANTHROPIC_API_KEY=sk-ant-...   # or: ant auth login
 # ...or drop the key in a local, gitignored file (nothing else reads it):
-#   mkdir -p .opencsr && open -e .opencsr/api_key   # paste key, save
+#   mkdir -p .opencsr && touch .opencsr/api_key && open -e .opencsr/api_key
+#   (paste the key into TextEdit, save)
 
 .venv/bin/python run_demo.py --backend managed   # autonomous demo, live agents
 .venv/bin/python serve.py   --backend managed    # workbench with live agents

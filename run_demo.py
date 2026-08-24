@@ -67,11 +67,27 @@ def main():
     ap.add_argument("--no-reset", action="store_true",
                     help="keep existing ledger and skill versions")
     ap.add_argument("--rounds", type=int, default=3)
+    ap.add_argument("--force", action="store_true",
+                    help="reset the ledger even if the workbench looks active")
     args = ap.parse_args()
 
     if not args.no_reset:
+        # Deleting the ledger while the workbench (or a live agent run) holds
+        # it open corrupts their connections. Refuse unless forced.
+        import socket
+        if Path(args.db).exists() and not args.force:
+            try:
+                socket.create_connection(("127.0.0.1", 8734), timeout=0.4).close()
+                print("The OpenCSR workbench appears to be running on port 8734"
+                      " and may be using this ledger.\nStop it first, or use"
+                      " --no-reset, --db <other.db>, or --force.")
+                return 2
+            except OSError:
+                pass
         reset_skills()
         Path(args.db).unlink(missing_ok=True)
+        for suffix in ("-wal", "-shm"):
+            Path(args.db + suffix).unlink(missing_ok=True)
     store = Store(args.db)
     backend = get_backend(args.backend)
 
@@ -86,7 +102,7 @@ def main():
     t1 = run_efficacy_task(store, backend)
     show_task(store, t1)
     rev = simulate_review(store, t1)
-    print(f"\n  GOVERNANCE REVIEW: {rev['decision'].upper()}")
+    print(f"\n  GOVERNANCE REVIEW: {rev.get('decision', 'ERROR: ' + str(rev.get('error'))).upper()}")
     print(f"  {rev.get('comment', '')}")
     doc = store.latest_document("csr/11.4.1")
     if doc:
@@ -99,7 +115,7 @@ def main():
                            title="Draft §11.4.1 (seeded fault: swapped_arms)")
     show_task(store, t2)
     rev2 = simulate_review(store, t2)
-    print(f"\n  GOVERNANCE REVIEW: {rev2['decision'].upper()} — "
+    print(f"\n  GOVERNANCE REVIEW: {rev2.get('decision', 'ERROR: ' + str(rev2.get('error'))).upper()} — "
           f"{rev2.get('comment', '')[:140]}")
 
     # ---- Act 3: patient narrative --------------------------------------
@@ -107,7 +123,7 @@ def main():
     t3 = run_narrative_task(store, backend)
     show_task(store, t3)
     rev3 = simulate_review(store, t3)
-    print(f"\n  GOVERNANCE REVIEW: {rev3['decision'].upper()}")
+    print(f"\n  GOVERNANCE REVIEW: {rev3.get('decision', 'ERROR: ' + str(rev3.get('error'))).upper()}")
 
     # ---- Act 4: hill climb ---------------------------------------------
     banner("ACT 4 — Hill climb: feedback + eval failures -> skill candidates "
@@ -139,7 +155,7 @@ def main():
                            title="Draft §11.4.1 (post-hill-climb)")
     show_task(store, t5)
     rev5 = simulate_review(store, t5)
-    print(f"\n  GOVERNANCE REVIEW: {rev5['decision'].upper()} — "
+    print(f"\n  GOVERNANCE REVIEW: {rev5.get('decision', 'ERROR: ' + str(rev5.get('error'))).upper()} — "
           f"{rev5.get('comment', '')[:120]}")
     doc = store.latest_document("csr/11.4.1")
     print(f"  document csr/11.4.1 is now v{doc['version']}")
@@ -156,7 +172,7 @@ def main():
         "eval_runs": len(evals),
         "audit_events": len(audits),
         "act5_revisions": store.get_task(t5)["result"]["revisions"],
-        "act5_decision": rev5["decision"],
+        "act5_decision": rev5.get("decision", "error"),
     }
     Path("demo_summary.json").write_text(json.dumps(summary, indent=2))
     banner("DONE — full lineage is in the ledger")

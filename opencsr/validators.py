@@ -107,8 +107,16 @@ def validate_claims(store: Store, snapshot: Snapshot, task_id: str) -> list[dict
                                    f"Claim {c['id']} lacks numerator/denominator.", refs))
             continue
 
-        # 1) percentage must equal n/N recomputed
-        expect = orr_with_ci(int(n), int(den))
+        # 1) percentage must equal n/N recomputed (a malformed value dict is
+        # itself a high-severity finding, never an unhandled exception)
+        try:
+            expect = orr_with_ci(int(n), int(den))
+        except (TypeError, ValueError) as e:
+            issues.append(_mkissue(
+                "numeric_mismatch", "high",
+                f"Claim {c['id']} has a malformed value "
+                f"(numerator={n!r}, denominator={den!r}): {e}", refs))
+            continue
         if est is not None and abs(expect["estimate_pct"] - float(est)) > 0.05:
             issues.append(_mkissue(
                 "numeric_mismatch", "high",
@@ -183,7 +191,7 @@ def _allowed_numbers(claims: list[dict], snapshot: Snapshot) -> set[str]:
     cutoff = _parse_sap_cutoff(snapshot)
     if cutoff:
         y, m, d = cutoff.split("-")
-        allowed.update({y, str(int(d)), d})
+        allowed.update({y, m, str(int(m)), d, str(int(d))})
     for c in claims:
         for v in c.get("value", {}).values():
             if isinstance(v, (int, float)):
@@ -239,17 +247,17 @@ def validate_draft(store: Store, snapshot: Snapshot, task_id: str,
                 f"Factual sentence lacks a valid claim mapping: '{s[:90]}'", refs))
     coverage = (mapped / factual) if factual else 1.0
 
-    # 3) interpretive phrases require approval
+    # 3) interpretive phrases require pre-approved language (the accountable
+    # human's approved phrasings live in terminology.json)
+    approved_phrases = {p.lower() for p in
+                        term.get("approved_interpretive_phrases", [])}
     for phrase in term["interpretive_phrases_requiring_approval"]:
-        if phrase.lower() in text.lower():
-            approved = any(c["support_class"] == "interpretive"
-                           and c["status"] == "approved" for c in claims)
-            if not approved:
-                issues.append(_mkissue(
-                    "interpretive_overreach", "high",
-                    f"Interpretive characterization '{phrase}' used without an "
-                    f"approved interpretive claim. Requires accountable human "
-                    f"approval (authority rule: interpretive).", refs))
+        if phrase.lower() in text.lower() and phrase.lower() not in approved_phrases:
+            issues.append(_mkissue(
+                "interpretive_overreach", "high",
+                f"Interpretive characterization '{phrase}' used without an "
+                f"approved interpretive claim. Requires accountable human "
+                f"approval (authority rule: interpretive).", refs))
 
     # 4) required content for a primary efficacy paragraph
     required = {
@@ -308,8 +316,10 @@ def validate_draft(store: Store, snapshot: Snapshot, task_id: str,
 
 NARRATIVE_ELEMENTS = {
     "patient identifier": lambda t, f: f["usubjid"] in t,
+    # word boundaries matter: "female" contains the substring "male"
     "age and sex": lambda t, f: str(f["age"]) in t and
-        (("female" in t.lower()) if f["sex"] == "F" else ("male" in t.lower())),
+        (bool(re.search(r"\bfemale\b", t, re.I)) if f["sex"] == "F"
+         else bool(re.search(r"\b(?<!fe)male\b", t, re.I))),
     "study drug and dose": lambda t, f: f["arm"].lower() in t.lower(),
     "event term": lambda t, f: f["event"].lower() in t.lower(),
     "severity/grade": lambda t, f: f"grade {f['grade']}" in t.lower(),

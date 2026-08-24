@@ -26,9 +26,14 @@ REASON_BY_CATEGORY = {
     "style": "style_convention",
 }
 
-INTERPRETIVE_SENTENCE = re.compile(
-    r"\s*[A-Z][^.!?]*\b(clinically meaningful|clinically significant|"
-    r"well tolerated|promising|encouraging)\b[^.!?]*[.!?]", re.I)
+def _interpretive_sentence_pattern() -> re.Pattern:
+    """Sentence-strip pattern built from the SAME terminology list the
+    validator enforces — a hardcoded subset here would silently accept
+    drafts using the uncovered phrases."""
+    from .sources import Snapshot
+    phrases = Snapshot().terminology["interpretive_phrases_requiring_approval"]
+    alt = "|".join(re.escape(p) for p in phrases)
+    return re.compile(rf"\s*[A-Z][^.!?]*\b({alt})\b[^.!?]*[.!?]", re.I)
 
 
 def simulate_review(store: Store, task_id: str,
@@ -61,12 +66,13 @@ def simulate_review(store: Store, task_id: str,
     fixes: list[str] = []
     reasons: list[str] = []
 
-    m = INTERPRETIVE_SENTENCE.search(text)
-    if m:
+    pat = _interpretive_sentence_pattern()
+    while (m := pat.search(text)):
         text = (text[:m.start()] + text[m.end():]).strip()
         fixes.append("removed unapproved interpretive characterization "
                      f"('{m.group(0).strip()[:60]}...')")
-        reasons.append("interpretation_too_strong")
+        if "interpretation_too_strong" not in reasons:
+            reasons.append("interpretation_too_strong")
 
     missing_cutoff = any(i["category"] == "missing_required_content"
                          and "cutoff" in i["description"].lower()
@@ -97,6 +103,21 @@ def simulate_review(store: Store, task_id: str,
                     if "added n/N denominators to percentages" not in fixes:
                         fixes.append("added n/N denominators to percentages")
                         reasons.append("style_convention")
+
+    # Safety net: if any restricted phrase survived the sentence-strip
+    # (unusual sentence shapes), do not accept — send it back instead.
+    from .sources import Snapshot
+    leftover = [p for p in
+                Snapshot().terminology["interpretive_phrases_requiring_approval"]
+                if p.lower() in text.lower()]
+    if leftover:
+        comment = (f"Rejected: unapproved interpretive language remains "
+                   f"({', '.join(leftover)}) and could not be safely edited "
+                   f"out.")
+        res = apply_decision(store, task_id, "rejected",
+                             "interpretation_too_strong", "this_instance",
+                             comment, None, persona)
+        return {"decision": "rejected", "comment": comment, **res}
 
     if fixes:
         comment = ("Accepted with modifications: " + "; ".join(fixes) +

@@ -289,6 +289,10 @@ def apply_decision(store: Store, task_id: str, decision: str,
     proposal = _latest_proposal(store, task_id)
     if not proposal:
         return {"error": "no proposal to decide on"}
+    if proposal["status"] != "pending_review":
+        return {"error": f"proposal is '{proposal['status']}' — only a "
+                         f"pending_review proposal can be decided; the task "
+                         f"was already closed"}
     node = proposal["target_node"]
 
     if decision in ("accepted", "modified"):

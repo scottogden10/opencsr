@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 
 from .domain import (Claim, EvidenceItem, Issue, Proposal, ToolReceipt,
                      new_id, now_iso, sha256_text, SUPPORT_CLASSES,
@@ -23,6 +24,35 @@ from .store import Store
 def _digest(obj) -> str:
     return "sha256:" + hashlib.sha256(
         json.dumps(obj, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+
+def _fragment_leaves(obj):
+    if isinstance(obj, dict):
+        for v in obj.values():
+            yield from _fragment_leaves(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _fragment_leaves(v)
+    else:
+        yield obj
+
+
+def _expected_in_fragment(expected: str, fragment: dict) -> bool:
+    """True when the agent's transcription matches the source fragment:
+    exact equality with a leaf value, or a token-boundary occurrence inside
+    a text leaf. A raw substring test would falsely verify '3' against 38
+    and falsely reject non-ASCII text against escaped JSON."""
+    expected = str(expected).strip()
+    if not expected:
+        return False
+    pat = re.compile(rf"(?<![\w.]){re.escape(expected)}(?![\w.])")
+    for leaf in _fragment_leaves(fragment):
+        s = str(leaf)
+        if expected == s:
+            return True
+        if isinstance(leaf, str) and pat.search(s):
+            return True
+    return False
 
 
 def _source_type(artifact: str) -> str:
@@ -196,8 +226,8 @@ class ToolGateway:
             reason = ""
             expected = item.get("expected")
             if expected is not None:
-                frag_json = json.dumps(resolved["fragment"], sort_keys=True)
-                if str(expected) not in frag_json:
+                if not _expected_in_fragment(str(expected),
+                                             resolved["fragment"]):
                     verified = False
                     reason = ("expected value not found in source fragment; "
                               "possible transcription error")

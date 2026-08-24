@@ -66,9 +66,17 @@ class Store:
     def __init__(self, path: str | Path):
         self.path = str(path)
         self._lock = threading.Lock()
-        self._conn = sqlite3.connect(self.path, check_same_thread=False)
+        self._conn = sqlite3.connect(self.path, check_same_thread=False,
+                                     timeout=30.0)
         self._conn.row_factory = sqlite3.Row
         with self._lock:
+            # WAL + busy timeout: the workbench server and a live agent run
+            # may share this ledger from separate processes; the default
+            # rollback journal can surface a concurrent write as a transient
+            # "attempt to write a readonly database" error.
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=10000")
+            self._conn.execute("PRAGMA synchronous=NORMAL")
             self._conn.executescript(SCHEMA)
             self._conn.commit()
 
@@ -212,12 +220,19 @@ class Store:
 
     def write_document(self, node: str, text: str, text_hash: str,
                        updated_by: str, task_id: str) -> int:
-        latest = self.latest_document(node)
-        version = (latest["version"] + 1) if latest else 1
-        self._exec(
-            "INSERT INTO documents (node, version, text, text_hash, updated_at,"
-            " updated_by, task_id) VALUES (?,?,?,?,?,?,?)",
-            (node, version, text, text_hash, now_iso(), updated_by, task_id))
+        # read-version + insert must be one atomic unit, or two concurrent
+        # accepts can compute the same (node, version) primary key
+        with self._lock:
+            cur = self._conn.execute(
+                "SELECT MAX(version) AS v FROM documents WHERE node=?", (node,))
+            row = cur.fetchone()
+            version = (row["v"] or 0) + 1
+            self._conn.execute(
+                "INSERT INTO documents (node, version, text, text_hash,"
+                " updated_at, updated_by, task_id) VALUES (?,?,?,?,?,?,?)",
+                (node, version, text, text_hash, now_iso(), updated_by,
+                 task_id))
+            self._conn.commit()
         return version
 
     def document_history(self, node: str) -> list[dict]:

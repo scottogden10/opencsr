@@ -25,6 +25,7 @@
     "require_n_over_N": true,
     "no_percent_below_denominator": 20
   },
+  "approved_interpretive_phrases": [],
   "interpretive_phrases_requiring_approval": [
     "clinically meaningful",
     "clinically significant",

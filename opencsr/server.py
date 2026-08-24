@@ -178,8 +178,13 @@ class App:
             {"name": s["name"], "version": s["version"]} for s in list_skills()]}
 
 
-def make_handler(app: App):
+def make_handler(app: App, allowed_hosts: set[str]):
     class Handler(BaseHTTPRequestHandler):
+        def _host_ok(self) -> bool:
+            # Host allowlist defeats DNS rebinding: a hostile domain that
+            # resolves to 127.0.0.1 still sends its own Host header.
+            return self.headers.get("Host", "").lower() in allowed_hosts
+
         def _send(self, code: int, payload, content_type="application/json"):
             body = (payload if isinstance(payload, bytes)
                     else json.dumps(payload, default=str).encode())
@@ -194,6 +199,9 @@ def make_handler(app: App):
 
         def do_GET(self):  # noqa: N802
             try:
+                if not self._host_ok():
+                    self._send(403, {"error": "unrecognized Host header"})
+                    return
                 if self.path in ("/", "/index.html"):
                     self._send(200, UI_PATH.read_bytes(),
                                "text/html; charset=utf-8")
@@ -211,17 +219,20 @@ def make_handler(app: App):
 
         def do_POST(self):  # noqa: N802
             try:
-                # CSRF hardening for the localhost API: require a JSON
+                # CSRF hardening: Host allowlist (anti-rebinding), JSON
                 # content type (forces a CORS preflight, which we never
-                # answer) and reject any cross-origin request outright.
+                # answer), and an Origin check against the allowlist.
+                if not self._host_ok():
+                    self._send(403, {"error": "unrecognized Host header"})
+                    return
                 ctype = self.headers.get("Content-Type", "")
                 if not ctype.startswith("application/json"):
                     self._send(415, {"error": "Content-Type must be "
                                               "application/json"})
                     return
                 origin = self.headers.get("Origin")
-                host = self.headers.get("Host", "")
-                if origin and origin not in (f"http://{host}", "null"):
+                allowed_origins = {f"http://{h}" for h in allowed_hosts}
+                if origin and origin not in allowed_origins and origin != "null":
                     self._send(403, {"error": "cross-origin requests are "
                                               "not allowed"})
                     return
@@ -250,7 +261,9 @@ def make_handler(app: App):
 def serve(db_path: str = "opencsr.db", backend: str = "mock",
           host: str = "127.0.0.1", port: int = 8734):
     app = App(db_path, backend)
-    httpd = _Server((host, port), make_handler(app))
+    allowed_hosts = {f"{host}:{port}", f"127.0.0.1:{port}",
+                     f"localhost:{port}"}
+    httpd = _Server((host, port), make_handler(app, allowed_hosts))
     print(f"OpenCSR workbench: http://{host}:{port}  "
           f"(backend: {backend}, ledger: {db_path})")
     httpd.serve_forever()

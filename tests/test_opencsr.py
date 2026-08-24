@@ -81,6 +81,90 @@ class TestData(unittest.TestCase):
             snap.resolve("table://T14.2.1/row/nope/col/arm_100")
 
 
+class TestQueryFilters(unittest.TestCase):
+    """Regression tests for the review findings on query_dataset."""
+
+    def setUp(self):
+        self.snap = Snapshot()
+
+    def test_gte_with_date_strings_and_empty_values(self):
+        # deaths on/after 2026-01-01: empty DTHDT must never match,
+        # ISO dates compare lexicographically
+        truth = sum(1 for r in self.snap.datasets["ADSL"]
+                    if r["DTHDT"] and r["DTHDT"] >= "2026-01-01")
+        got = self.snap.query_dataset("ADSL", filters=[
+            {"var": "DTHDT", "op": "gte", "value": "2026-01-01"}])
+        self.assertEqual(got["count"], truth)
+        self.assertGreater(truth, 0)
+
+    def test_adsl_filters_support_gte(self):
+        # SAE subjects aged >= 65 must actually be restricted by age
+        unrestricted = self.snap.query_dataset(
+            "ADAE", filters=[{"var": "AESER", "op": "eq", "value": "Y"}])
+        restricted = self.snap.query_dataset(
+            "ADAE", filters=[{"var": "AESER", "op": "eq", "value": "Y"}],
+            adsl_filters=[{"var": "AGE", "op": "gte", "value": 65}])
+        self.assertLess(restricted["count"], unrestricted["count"])
+
+    def test_unknown_op_raises(self):
+        with self.assertRaises(ValueError):
+            self.snap.query_dataset("ADSL", filters=[
+                {"var": "AGE", "op": "lt", "value": 50}])
+
+
+class TestReviewRegressions(unittest.TestCase):
+    def test_sex_check_word_boundary(self):
+        from opencsr.validators import NARRATIVE_ELEMENTS
+        chk = NARRATIVE_ELEMENTS["age and sex"]
+        male = {"sex": "M", "age": "60"}
+        self.assertFalse(chk("This 60-year-old female patient improved.", male))
+        self.assertTrue(chk("This 60-year-old male patient improved.", male))
+
+    def test_expected_guard_rejects_partial_digits(self):
+        from opencsr.tools import _expected_in_fragment
+        frag = {"cell": {"N": 38, "n": 16, "pct": 42.1,
+                         "display": "16 (42.1) [26.3, 59.2]"}}
+        self.assertTrue(_expected_in_fragment("16", frag))
+        self.assertTrue(_expected_in_fragment("42.1", frag))
+        self.assertFalse(_expected_in_fragment("3", frag))
+        self.assertFalse(_expected_in_fragment("2.1", frag))
+        self.assertTrue(_expected_in_fragment("≥18",
+                        {"text": "adults (≥18 years) with tumors"}))
+
+    def test_double_decision_rejected(self):
+        store, path = fresh_store()
+        backend = get_backend("mock")
+        tid = run_efficacy_task(store, backend)
+        first = simulate_review(store, tid)
+        self.assertIn(first["decision"], ("accepted", "modified"))
+        again = apply_decision(store, tid, "rejected", "other",
+                               "this_instance", "", None, "human:test")
+        self.assertIn("error", again)
+        os.unlink(path)
+
+    def test_iso_cutoff_in_draft_not_flagged(self):
+        from opencsr.validators import _allowed_numbers
+        snap = Snapshot()
+        allowed = _allowed_numbers([], snap)
+        self.assertIn("05", allowed)  # zero-padded cutoff month
+
+    def test_failed_eval_case_is_failure_shaped(self):
+        from opencsr.evals import _case_gold_efficacy
+
+        class FailingBackend:
+            name = "mock"
+
+            def run_agent(self, agent_name, prompt, brief, gateway, config):
+                return {"status": "failed", "notes": "boom"}
+
+        store, path = fresh_store()
+        res = _case_gold_efficacy(store, FailingBackend(), None)
+        self.assertEqual(res["numeric_accuracy"], 0.0)
+        self.assertFalse(res["style_ok_first_pass"])
+        self.assertGreater(res["stray_numbers"], 0)
+        os.unlink(path)
+
+
 class TestGateway(unittest.TestCase):
     def test_capability_denial_is_logged_and_blocked(self):
         store, path = fresh_store()

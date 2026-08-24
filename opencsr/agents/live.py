@@ -90,7 +90,7 @@ class ManagedBackend:
                 raise
             env_id = None
             envs = self.client.beta.environments.list()
-            for it in getattr(envs, "data", envs):
+            for it in envs:  # SDK auto-paginates the page object
                 if getattr(it, "name", "") == ENV_NAME:
                     env_id = it.id
                     break
@@ -147,12 +147,14 @@ class ManagedBackend:
                                       "currency": "USD"}},
             initial_events=[{"type": "user.message",
                              "content": [{"type": "text", "text": brief}]}])
+        workspace = os.environ.get("OPENCSR_WORKSPACE", "default")
         if self.verbose:
             print(f"  [managed] session {session.id} — trace: "
-                  f"https://platform.claude.com/workspaces/default/sessions/"
+                  f"https://platform.claude.com/workspaces/{workspace}/sessions/"
                   f"{session.id}")
 
         answered: set[str] = set()
+        tool_results: dict[str, tuple] = {}  # ev_id -> (result, finished)
         state = {"finished": False, "calls": 0, "status": "completed",
                  "errors": []}
 
@@ -168,12 +170,17 @@ class ManagedBackend:
                 ev_id = ev_field(ev, "id")
                 if ev_id in answered:
                     return "continue"
-                answered.add(ev_id)
-                state["calls"] += 1
-                name = ev_field(ev, "name", "")
-                raw = ev_field(ev, "input", {}) or {}
-                tool_input = dict(raw) if not isinstance(raw, dict) else raw
-                result, finished = handler(name, tool_input)
+                # exactly-once tool execution, at-least-once delivery: the
+                # host-side effect is cached by event id, and the id is only
+                # marked answered AFTER the result send succeeds — a dropped
+                # send is replayed on reconnect without re-running the tool.
+                if ev_id not in tool_results:
+                    name = ev_field(ev, "name", "")
+                    raw = ev_field(ev, "input", {}) or {}
+                    tool_input = dict(raw) if not isinstance(raw, dict) else raw
+                    tool_results[ev_id] = handler(name, tool_input)
+                    state["calls"] += 1
+                result, finished = tool_results[ev_id]
                 self.client.beta.sessions.events.send(
                     session_id=session.id,
                     events=[{"type": "user.custom_tool_result",
@@ -181,6 +188,7 @@ class ManagedBackend:
                              "content": [{"type": "text",
                                           "text": json.dumps(result,
                                                              default=str)}]}])
+                answered.add(ev_id)
                 if finished:
                     state["finished"] = True
                     self.client.beta.sessions.events.send(
@@ -214,9 +222,11 @@ class ManagedBackend:
                     # consolidation: history first, then live (dedupe by id;
                     # terminal checks run for already-seen events too)
                     seen: set[str] = set()
+                    # iterate the page object itself: the SDK auto-paginates,
+                    # while .data would silently stop at the first page
                     history = self.client.beta.sessions.events.list(
                         session_id=session.id)
-                    for ev in getattr(history, "data", history):
+                    for ev in history:
                         ev_id = ev_field(ev, "id")
                         if ev_id:
                             seen.add(ev_id)

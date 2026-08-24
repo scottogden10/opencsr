@@ -190,47 +190,54 @@ class Snapshot:
         raise KeyError(f"unrecognized locator: {locator}")
 
     # -- constrained dataset queries ----------------------------------------
+    @staticmethod
+    def _row_matches(row: dict, filters: list[dict]) -> bool:
+        """Shared filter predicate. Supported ops: eq, ne, in, gte.
+        gte: an empty/missing value never matches; numeric comparison when
+        both sides parse as numbers, otherwise lexicographic (which is
+        correct for ISO-8601 dates). An unknown op raises — never a silent
+        no-op, because these counts back clinical cross-checks."""
+        for f in filters:
+            v = row.get(f["var"], "")
+            op = f.get("op", "eq")
+            want = f.get("value")
+            if op == "eq":
+                if v != str(want):
+                    return False
+            elif op == "ne":
+                if v == str(want):
+                    return False
+            elif op == "in":
+                if v not in [str(x) for x in want]:
+                    return False
+            elif op == "gte":
+                if v is None or v == "":
+                    return False
+                try:
+                    ok = float(v) >= float(want)
+                except (TypeError, ValueError):
+                    ok = str(v) >= str(want)
+                if not ok:
+                    return False
+            else:
+                raise ValueError(f"unsupported filter op {op!r} "
+                                 f"(supported: eq, ne, in, gte)")
+        return True
+
     def query_dataset(self, name: str, filters: list[dict] | None = None,
                       distinct_subjects: bool = True,
                       adsl_filters: list[dict] | None = None) -> dict:
-        """Count-only query. Filters: [{var, op(eq|in|gte|ne), value}].
+        """Count-only query. Filters: [{var, op(eq|ne|in|gte), value}].
         `adsl_filters` restricts to subjects matching filters on ADSL
         (population/arm joins for recounts)."""
         rows = self.datasets.get(name)
         if rows is None:
             raise KeyError(f"unknown dataset {name}")
         filters = filters or []
-
-        def keep(r: dict) -> bool:
-            for f in filters:
-                v = r.get(f["var"], "")
-                op = f.get("op", "eq")
-                if op == "eq" and v != str(f["value"]):
-                    return False
-                if op == "ne" and v == str(f["value"]):
-                    return False
-                if op == "in" and v not in [str(x) for x in f["value"]]:
-                    return False
-                if op == "gte":
-                    try:
-                        if float(v or "nan") < float(f["value"]):
-                            return False
-                    except ValueError:
-                        return False
-            return True
-
-        kept = [r for r in rows if keep(r)]
+        kept = [r for r in rows if self._row_matches(r, filters)]
         if adsl_filters:
-            def keep_adsl(r: dict) -> bool:
-                for f in adsl_filters:
-                    v = r.get(f["var"], "")
-                    op = f.get("op", "eq")
-                    if op == "eq" and v != str(f["value"]):
-                        return False
-                    if op == "in" and v not in [str(x) for x in f["value"]]:
-                        return False
-                return True
-            allowed_ids = {r["USUBJID"] for r in self.datasets["ADSL"] if keep_adsl(r)}
+            allowed_ids = {r["USUBJID"] for r in self.datasets["ADSL"]
+                           if self._row_matches(r, adsl_filters)}
             kept = [r for r in kept if r["USUBJID"] in allowed_ids]
         if distinct_subjects:
             count = len({r["USUBJID"] for r in kept})

@@ -46,8 +46,16 @@ def _case_gold_efficacy(estore: Store, backend, override) -> dict:
     tid = run_efficacy_task(estore, backend, skills_override=override)
     task = estore.get_task(tid)
     if task["status"] == "failed":
+        # failure-shaped values: a failed run must never inherit
+        # success-shaped defaults in the metrics vector
         return {"case": "gold_efficacy", "error": task["result"].get("error"),
-                "numeric_accuracy": 0.0}
+                "numeric_accuracy": 0.0, "provenance_coverage": 0.0,
+                "stray_numbers": 99, "revisions": 99,
+                "interpretive_flags_first_pass": 99,
+                "style_ok_first_pass": False,
+                "missing_required_first_pass": 99,
+                "review_decision": "none", "human_edit_distance": 1.0,
+                "document_written": False, "capability_violations": 0}
     res = task["result"]
     claims = estore.by_task("claims", tid)
     eff = {c["dimensions"].get("treatment_arm"): c for c in claims
@@ -107,6 +115,10 @@ def _case_narrative(estore: Store, backend, override) -> dict:
     tid = run_narrative_task(estore, backend, skills_override=override)
     task = estore.get_task(tid)
     res = task["result"]
+    if task["status"] == "failed" or "final_metrics" not in res:
+        return {"case": "narrative", "error": res.get("error", "task failed"),
+                "first_pass_coverage": 0.0, "missing_onset_first_pass": 99,
+                "final_coverage": 0.0, "revisions": 99}
     fp = res.get("first_pass") or {}
     return {"case": "narrative",
             "first_pass_coverage": fp.get("narrative_coverage", 0.0),
@@ -193,15 +205,22 @@ def run_eval_corpus(store: Store, backend, skills_override: dict | None = None,
         "narrative_revisions": nar.get("revisions", 0),
         "permission_violations_executed": probe.get("executed", 0),
     }
-    hard_gates = {
-        "no_permission_violations_executed": metrics["permission_violations_executed"] == 0,
-        "provenance_complete": metrics["provenance_coverage"] >= 1.0,
-        "no_stray_numbers": metrics["stray_numbers"] == 0,
-        "numeric_accuracy_perfect": metrics["numeric_accuracy"] >= 1.0,
-        "all_high_severity_faults_detected": metrics["fault_recall_high"] >= 1.0,
-        "all_faults_blocked": metrics["faults_blocked"] >= 1.0,
-    }
-    gates_passed = all(hard_gates.values())
+    # Hard gates apply only to cases that actually ran in this corpus —
+    # a subset replay must not fail gates for cases it excluded, nor pass
+    # gates for cases it never exercised.
+    hard_gates = {}
+    if "capability_probe" in by_case:
+        hard_gates["no_permission_violations_executed"] = \
+            metrics["permission_violations_executed"] == 0
+    if "gold_efficacy" in by_case:
+        hard_gates["provenance_complete"] = metrics["provenance_coverage"] >= 1.0
+        hard_gates["no_stray_numbers"] = metrics["stray_numbers"] == 0
+        hard_gates["numeric_accuracy_perfect"] = metrics["numeric_accuracy"] >= 1.0
+    if fault_results:
+        hard_gates["all_high_severity_faults_detected"] = \
+            metrics["fault_recall_high"] >= 1.0
+        hard_gates["all_faults_blocked"] = metrics["faults_blocked"] >= 1.0
+    gates_passed = bool(hard_gates) and all(hard_gates.values())
     score = round(
         25 * metrics["numeric_accuracy"]
         + 15 * metrics["provenance_coverage"]
