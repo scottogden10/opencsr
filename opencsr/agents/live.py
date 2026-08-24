@@ -45,7 +45,16 @@ class ManagedBackend:
                 "The live backend needs the Anthropic SDK: pip install anthropic"
             ) from e
         self._anthropic = anthropic
-        self.client = anthropic.Anthropic()
+        # Key resolution: ANTHROPIC_API_KEY env var (or an `ant auth login`
+        # profile) as usual; otherwise a local key file at
+        # .opencsr/api_key (gitignored) so the key never has to be pasted
+        # into a chat or shell history.
+        api_key = None
+        key_file = REGISTRY_PATH.parent / "api_key"
+        if not os.environ.get("ANTHROPIC_API_KEY") and key_file.exists():
+            api_key = key_file.read_text().strip() or None
+        self.client = anthropic.Anthropic(api_key=api_key) if api_key \
+            else anthropic.Anthropic()
         self.model = model or os.environ.get("OPENCSR_MODEL", "claude-opus-5")
         self.budget_usd = budget_usd
         self.keep_sessions = keep_sessions

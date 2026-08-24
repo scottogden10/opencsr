@@ -1,6 +1,6 @@
 ---
 name: patient-narrative
-version: 2
+version: 1
 description: How to write ICH E3 12.3.2 narratives of deaths and serious adverse events.
 ---
 
@@ -20,7 +20,3 @@ Facts come only from the subject's ADSL and ADAE records; register the
 subject-record locators in the facts map. Never speculate beyond the
 recorded data; events clearly unrelated to study drug may be described
 briefly.
-
-## House rules (learned)
-
-- State event onset as a study day relative to first dose ("On study day N, ..."). RULE:STATE_ONSET_DAY

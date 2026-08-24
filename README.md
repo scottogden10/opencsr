@@ -57,11 +57,16 @@ your machine as an `agent.custom_tool_use` event that the governed gateway
 executes host-side.
 
 ```bash
-pip install anthropic
-export ANTHROPIC_API_KEY=sk-ant-...   # or: ant auth login
+# one-time setup (Homebrew/system Pythons need a venv for installs)
+python3 -m venv .venv && .venv/bin/pip install anthropic
 
-python3 run_demo.py --backend managed     # autonomous demo, live agents
-python3 serve.py   --backend managed      # workbench with live agents
+# give it a key — either an environment variable...
+export ANTHROPIC_API_KEY=sk-ant-...   # or: ant auth login
+# ...or drop the key in a local, gitignored file (nothing else reads it):
+#   mkdir -p .opencsr && open -e .opencsr/api_key   # paste key, save
+
+.venv/bin/python run_demo.py --backend managed   # autonomous demo, live agents
+.venv/bin/python serve.py   --backend managed    # workbench with live agents
 ```
 
 Notes:

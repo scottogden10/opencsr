@@ -1,6 +1,6 @@
 ---
 name: csr-efficacy-reporting
-version: 4
+version: 1
 description: How to write the primary efficacy results paragraph (ICH E3 11.4.1) for study OCS-101.
 ---
 
@@ -25,9 +25,3 @@ Constraints:
 - Do not perform any calculation yourself; values come from claims that were
   built from table cells and validated calculators.
 - Do not compare arms inferentially; this study is descriptive (SAP 9.7).
-
-## House rules (learned)
-
-- Never characterize results as clinically meaningful/significant or otherwise interpret them; report and cite only. Interpretive language requires an approved interpretive claim. RULE:NO_UNAPPROVED_INTERPRETIVE
-- Always report the numerator and denominator with every percentage, e.g. "42.1% (16/38)". RULE:REPORT_N_OVER_N
-- End the paragraph by stating the data cutoff date from the data_cutoff claim, e.g. "Results are based on the data cutoff of 01 May 2026." RULE:STATE_DATA_CUTOFF

@@ -6,3 +6,4 @@ opencsr_eval_*.db
 demo_summary.json
 .opencsr/
 nohup.out
+.venv/
