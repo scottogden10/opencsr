@@ -155,6 +155,8 @@ class App:
         return {"job_id": job}
 
     def skill_detail(self, name: str) -> dict:
+        if name not in {s["name"] for s in list_skills()}:
+            return {"error": f"unknown skill {name!r}"}
         s = load_skill(name)
         versions_dir = Path(__file__).resolve().parent.parent / "skills" / name / "versions"
         versions = []
@@ -209,6 +211,20 @@ def make_handler(app: App):
 
         def do_POST(self):  # noqa: N802
             try:
+                # CSRF hardening for the localhost API: require a JSON
+                # content type (forces a CORS preflight, which we never
+                # answer) and reject any cross-origin request outright.
+                ctype = self.headers.get("Content-Type", "")
+                if not ctype.startswith("application/json"):
+                    self._send(415, {"error": "Content-Type must be "
+                                              "application/json"})
+                    return
+                origin = self.headers.get("Origin")
+                host = self.headers.get("Host", "")
+                if origin and origin not in (f"http://{host}", "null"):
+                    self._send(403, {"error": "cross-origin requests are "
+                                              "not allowed"})
+                    return
                 length = int(self.headers.get("Content-Length", "0"))
                 body = json.loads(self.rfile.read(length) or b"{}")
                 routes = {

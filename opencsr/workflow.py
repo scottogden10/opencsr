@@ -278,7 +278,11 @@ def run_narrative_task(store: Store, backend, usubjid: str | None = None,
 def apply_decision(store: Store, task_id: str, decision: str,
                    reason_code: str, scope: str, comment: str,
                    final_text: str | None, actor: str) -> dict:
-    from .domain import FeedbackEvent
+    from .domain import FeedbackEvent, REASON_CODES, FEEDBACK_SCOPES
+    if reason_code not in REASON_CODES:
+        reason_code = "other"
+    if scope not in FEEDBACK_SCOPES:
+        scope = "this_instance"
     task = store.get_task(task_id)
     if not task:
         return {"error": "unknown task"}

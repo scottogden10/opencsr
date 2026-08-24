@@ -49,6 +49,19 @@ def run_hillclimb(store: Store, backend, max_rounds: int = 3,
                    "eval_report": {"metrics": baseline["metrics"]}}
         candidates = backend.run_skillsmith(
             "Propose minimal skill rule additions from the signals.", signals)
+        # Candidates are agent-proposed: validate before touching the
+        # filesystem (skill must exist — no path traversal — and the rule
+        # marker must be well-formed and present in the rule text).
+        import re as _re
+        from .skills import list_skills as _ls
+        known = {s["name"] for s in _ls()}
+        candidates = [c for c in (candidates or [])
+                      if isinstance(c, dict)
+                      and c.get("skill") in known
+                      and isinstance(c.get("rule_text"), str)
+                      and _re.fullmatch(r"RULE:[A-Z_]{3,40}",
+                                        str(c.get("rule_marker", "")))
+                      and c["rule_marker"] in c["rule_text"]]
         if not candidates:
             history.append({"stage": f"round{rnd}",
                             "note": "no candidates proposed; converged"})

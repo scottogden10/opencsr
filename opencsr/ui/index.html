@@ -219,7 +219,7 @@ function viewTaskDetail(){
   }).join("");
 
   const claims=d.claims.map(c=>`
-    <details id="c_${c.id}"><summary><span class="mono">${c.id}</span> · ${c.claim_type} · <span class="chip neutral">${c.support_class}</span> ${esc(c.text).slice(0,110)}</summary>
+    <details id="c_${safeId(c.id)?c.id:""}"><summary><span class="mono">${esc(c.id)}</span> · ${esc(c.claim_type)} · <span class="chip neutral">${esc(c.support_class)}</span> ${esc(c.text).slice(0,110)}</summary>
       <pre>${esc(JSON.stringify({dimensions:c.dimensions,value:c.value},null,1))}</pre>
       <div class="small muted">evidence:</div>
       ${(c.evidence_ids||[]).map(id=>{const e=evById[id];return e?`<details><summary class="mono small">${esc(id)} · ${esc(e.locator)} ${e.verified?'<span class="chip ok">verified</span>':'<span class="chip err">mismatch</span>'}</summary><pre>${esc(JSON.stringify(e.fragment,null,1))}</pre></details>`:`<span class="mono small">${esc(id)}</span>`;}).join("")}
@@ -238,7 +238,7 @@ function viewTaskDetail(){
     <td>${(x.detail&&x.detail.usage&&(x.detail.usage.tool_calls??""))||""}</td>
     <td class="small muted">${esc((x.detail&&x.detail.notes)||"").slice(0,90)}</td></tr>`).join("");
 
-  const fb=d.feedback.map(f=>`<div class="hyp"><b>${f.decision}</b> · ${f.reason_code} · scope: ${f.scope} · <span class="muted">${f.actor}</span><br><span class="small">${esc(f.comment)}</span></div>`).join("");
+  const fb=d.feedback.map(f=>`<div class="hyp"><b>${esc(f.decision)}</b> · ${esc(f.reason_code)} · scope: ${esc(f.scope)} · <span class="muted">${esc(f.actor)}</span><br><span class="small">${esc(f.comment)}</span></div>`).join("");
 
   const pending = t.status==="pending_review";
   const decisionPanel = pending? `
@@ -337,8 +337,8 @@ function viewClimb(){
   const ev=S.state.skill_events;
   const rows=ev.map(e=>`
     <div style="padding:8px 0;border-bottom:1px solid var(--line)">
-      <span class="chip ${e.action==="promoted"?"ok":"err"}">${e.action}</span>
-      <b>${e.skill}</b> → v${e.version} <span class="muted small">${fmtT(e.created_at)} · eval ${e.eval_id||""}</span>
+      <span class="chip ${e.action==="promoted"?"ok":"err"}">${esc(e.action)}</span>
+      <b>${esc(e.skill)}</b> → v${esc(e.version)} <span class="muted small">${fmtT(e.created_at)} · eval ${esc(e.eval_id||"")}</span>
       ${e.hypothesis?`<div class="hyp small">
         <b>problem:</b> ${esc(e.hypothesis.problem)}<br>
         <b>change:</b> ${esc(e.hypothesis.change)}<br>
@@ -355,8 +355,8 @@ function viewClimb(){
 
 /* ------------------------------- skills -------------------------------- */
 function viewSkills(){
-  const cur=S.state.skills.map(s=>`<tr class="click" onclick="openSkill('${s.name}')">
-    <td><b>${s.name}</b></td><td>v${s.version}</td><td class="muted small">${esc(s.description)}</td></tr>`).join("");
+  const cur=S.state.skills.filter(s=>safeId(s.name)).map(s=>`<tr class="click" onclick="openSkill('${s.name}')">
+    <td><b>${esc(s.name)}</b></td><td>v${esc(s.version)}</td><td class="muted small">${esc(s.description)}</td></tr>`).join("");
   let detail="";
   if(S.skillDetail){
     const d=S.skillDetail;
