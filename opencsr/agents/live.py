@@ -194,7 +194,19 @@ class ManagedBackend:
                     self.client.beta.sessions.events.send(
                         session_id=session.id,
                         events=[{"type": "user.interrupt"}])
-                elif state["calls"] >= max_tool_calls:
+                elif state["calls"] == max_tool_calls:
+                    # soft ceiling: tell the agent to finalize (the handler
+                    # now only executes submit_* tools); never cut the line
+                    # mid-work — a truncated agent that registered nothing
+                    # is worse than a bounded one that submits what it has
+                    self.client.beta.sessions.events.send(
+                        session_id=session.id,
+                        events=[{"type": "user.message",
+                                 "content": [{"type": "text", "text":
+                                     "TOOL BUDGET REACHED. Stop gathering. "
+                                     "Call your submit_* tool NOW with what "
+                                     "you already have."}]}])
+                elif state["calls"] >= max_tool_calls + 8:
                     state["status"] = "budget_exceeded"
                     self.client.beta.sessions.events.send(
                         session_id=session.id,
@@ -298,14 +310,19 @@ class ManagedBackend:
     def run_agent(self, agent_name, prompt, brief, gateway, config):
         entry = self._ensure_agent(agent_name, prompt)
 
-        def handler(name, tool_input):
-            result = gateway.call(name, tool_input)
-            return result, gateway.finished
-
         from .registry import TOOL_BUDGETS
         budgets = (config or {}).get("budgets", {})
         cap = min(budgets.get("max_tool_calls", 60),
                   TOOL_BUDGETS.get(agent_name, 40))
+
+        def handler(name, tool_input):
+            # past the soft ceiling, only finalization tools execute
+            if gateway.calls >= cap and not name.startswith("submit_"):
+                return ({"error": "Tool budget exhausted. Call your submit_* "
+                                  "tool NOW with what you already have."},
+                        gateway.finished)
+            result = gateway.call(name, tool_input)
+            return result, gateway.finished
         loop = self._session_loop(
             entry, brief, handler,
             title=f"opencsr {agent_name}: {gateway.task_id}",
