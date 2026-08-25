@@ -1,5 +1,8 @@
 # OpenCSR — a governed clinical work OS demo, built on Claude Managed Agents
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/scottogden10/opencsr?quickstart=1)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/scottogden10/opencsr)
+
 OpenCSR is an open-source, runs-on-your-laptop demonstration of a **clinical
 work operating system**: governed AI agents that turn frozen study sources
 (protocol, SAP, ADaM datasets, TLFs) into **evidence-backed, versioned

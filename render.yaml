@@ -1,0 +1,12 @@
+# One-click Render blueprint: hosts the OpenCSR workbench publicly in mock
+# mode (no API key, deterministic demo, free tier).
+#   https://render.com/deploy?repo=https://github.com/scottogden10/opencsr
+services:
+  - type: web
+    name: opencsr-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/state
+    envVars:
+      - key: OPENCSR_ALLOWED_HOSTS
+        value: "*"
