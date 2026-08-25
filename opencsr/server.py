@@ -76,6 +76,18 @@ class App:
         self.backend_name = backend_name
         self._backend = None
         self.snapshot = Snapshot()  # clean snapshot for views (read-only)
+        # Jobs live in this process's memory: any task still marked running
+        # in the ledger at boot was orphaned by a restart (deploy, crash,
+        # free-tier spin-down). Close it out so the UI never shows a zombie
+        # "agents drafting" forever.
+        for t in self.store.list_tasks(limit=500):
+            if t["status"] in ("created", "running"):
+                self.store.update_task(
+                    t["id"], status="failed",
+                    result={"error": "orphaned by a server restart — "
+                                     "re-run the task"})
+                self.store.audit("task.failed", t["id"], {"actor": "runtime"},
+                                 {"reason": "orphaned by restart"})
 
     @property
     def backend(self):
