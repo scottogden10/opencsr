@@ -396,8 +396,8 @@ class MockBackend:
             s2 = (f"The subject discontinued study treatment due to "
                   f"{cause.lower()} and died on "
                   f"{_fmt_date(adsl.get('DTHDT', ''))}.")
-            s3 = (f"The death was attributed to {cause.lower()} and was "
-                  f"assessed by the investigator as not related to examplinib.")
+            s3 = (f"The death was attributed to {cause.lower()}; no adverse "
+                  f"event was recorded as the cause of death.")
             text = " ".join([s1, s2, s3])
             locs = [recs["locators"].get("ADSL", "")]
             gw.call("submit_narrative", {
@@ -445,9 +445,19 @@ class MockBackend:
             s3 = f"{action}; the event outcome was {ae.get('AEOUT', '').lower()}."
         s4 = (f"The investigator assessed the event as "
               f"{ae.get('AEREL', '').lower()} to examplinib.")
-        text = " ".join([s1, s2, s3, s4])
+        sentences = [s1, s2, s3, s4]
+        # subjects who died of something other than the drafted SAE still
+        # need the death reported (ICH E3: all deaths are narrated)
+        if (adsl.get("DTHFL") == "Y" and ae.get("AEOUT") != "FATAL"
+                and adsl.get("DTHDT")):
+            cause = adsl.get("DCSREAS", "death").lower().replace("_", " ")
+            sentences.append(
+                f"The subject subsequently died on "
+                f"{_fmt_date(adsl.get('DTHDT', ''))}; the death was "
+                f"attributed to {cause}.")
+        text = " ".join(sentences)
         locs = [recs["locators"].get("ADSL", ""), recs["locators"].get("ADAE", "")]
-        facts_map = [{"sentence": s, "locators": locs} for s in (s1, s2, s3, s4)]
+        facts_map = [{"sentence": s, "locators": locs} for s in sentences]
         gw.call("submit_narrative", {"usubjid": usubjid, "text": text,
                                      "facts_map": facts_map})
         return f"narrative drafted for {usubjid}"

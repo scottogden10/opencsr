@@ -58,6 +58,7 @@ tr.click:hover td{background:var(--panel2)}
 .status-pending_review{color:var(--warn)} .status-running{color:var(--accent)}
 .status-closed_accepted,.status-closed_modified{color:var(--good)}
 .status-closed_rejected,.status-failed{color:var(--bad)}
+.status-closed_stale{color:var(--ink3)}
 .mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
 .draft{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
   padding:13px 15px;line-height:1.65;font-size:14.5px}
@@ -120,7 +121,11 @@ a{color:var(--accent);text-decoration:none}
 <script>
 "use strict";
 const TABS = ["CSR","Tasks","Evals","Hill climb","Skills","Audit"];
-let S = {state:null, tab:"CSR", taskId:null, taskDetail:null, skillDetail:null, polling:false, tlf:{}};
+let S = {state:null, tab:"CSR", taskId:null, taskDetail:null, skillDetail:null, polling:false, tlf:{}, open:{}};
+
+/* <details> open-state survives poll-driven re-renders */
+function isOpen(key, def){ return S.open[key] !== undefined ? S.open[key] : def; }
+function trackOpen(evt, key){ S.open[key] = evt.target.open; }
 
 /* Who did it? Humans, simulated reviewers, AI agents, and the deterministic
    rule engine each get an unmistakable chip. */
@@ -195,12 +200,32 @@ function render(){
     `<button class="${t===S.tab?"active":""}" onclick="setTab('${t}')">${t}</button>`).join("");
   const m = document.getElementById("main");
   if(!S.state){ m.innerHTML="Loading…"; return; }
+  // preserve in-progress human review edits across poll re-renders — a
+  // reset "acting as" selector would misattribute the decision
+  const ft = document.getElementById("finalText");
+  const saved = ft ? {
+    finalText: ft.value,
+    actingRole: document.getElementById("actingRole")?.value,
+    reason: document.getElementById("reason")?.value,
+    scope: document.getElementById("scope")?.value,
+    comment: document.getElementById("comment")?.value } : null;
+  const restore = () => {
+    if(!saved) return;
+    const set = (id,v)=>{const el=document.getElementById(id); if(el && v!==undefined) el.value=v;};
+    set("finalText",saved.finalText); set("actingRole",saved.actingRole);
+    set("reason",saved.reason); set("scope",saved.scope); set("comment",saved.comment);
+  };
   if(S.tab==="CSR") m.innerHTML = S.taskId? viewTaskDetail() : viewCSR();
   else if(S.tab==="Tasks") m.innerHTML = S.taskId? viewTaskDetail() : viewTasks();
   else if(S.tab==="Evals") m.innerHTML = viewEvals();
   else if(S.tab==="Hill climb") m.innerHTML = viewClimb();
   else if(S.tab==="Skills") m.innerHTML = viewSkills();
   else m.innerHTML = viewAudit();
+  restore();
+  // re-inject cached TLF tables into freshly-rebuilt (still-open) sections
+  if(S.tab==="CSR" && !S.taskId){
+    for(const tid of Object.keys(S.tlf)) renderTLF(tid);
+  }
 }
 function setTab(t){ S.tab=t; if(t!=="Tasks"){S.taskId=null;} render(); }
 async function openTask(id){ S.tab="Tasks"; S.taskId=id; S.taskDetail=await api("/api/tasks/"+id); render(); }
@@ -253,7 +278,7 @@ function viewCSR(){
           <span class="muted small">${esc(s.arm)} — ${esc(s.reason)}</span>
           ${statusChip(s)}
           ${s.state==="populated"?`<span class="small">approved by ${actorChip(s.updated_by)}</span>
-            <details style="flex-basis:100%"><summary class="small">read narrative v${esc(s.version)}</summary>
+            <details style="flex-basis:100%"${isOpen("narr_"+s.usubjid,false)?" open":""} ontoggle="trackOpen(event,'narr_${safeId(s.usubjid)?s.usubjid:""}')"><summary class="small">read narrative v${esc(s.version)}</summary>
             <div class="draft" style="margin-top:6px">${esc(s.text)}</div></details>`:""}
           ${s.state==="in_review"?`<button class="action" onclick="openTask('${safeId(s.task_id)?s.task_id:""}')">Review now</button>`:""}
           ${canDraft?`<button class="ghost" onclick="draftNarrative('${s.usubjid}')">✍ Draft with agents</button>`:""}
@@ -284,9 +309,12 @@ function viewCSR(){
     } else {
       chip = statusChip(sec);
     }
-    const tlfToggle = sec.kind && sec.kind.startsWith("tlf:")
-      ? ` ontoggle="loadTLF(event,'${sec.table_id}')"` : "";
-    return `<details class="secrow"${sec.state==="in_review"||sec.kind==="narratives"?" open":""}${tlfToggle}>
+    const key = "sec_"+sec.section;
+    const defOpen = sec.state==="in_review"||sec.kind==="narratives";
+    const toggler = sec.kind && sec.kind.startsWith("tlf:")
+      ? ` ontoggle="trackOpen(event,'${key}');loadTLF(event,'${sec.table_id}')"`
+      : ` ontoggle="trackOpen(event,'${key}')"`;
+    return `<details class="secrow"${isOpen(key, defOpen)?" open":""}${toggler}>
       <summary><span class="secnum">§${esc(sec.section)}</span>
         <span class="sectitle">${esc(sec.title)}</span>${chip}${actions}</summary>
       ${body}
@@ -311,11 +339,18 @@ async function runTask2(type){
   await act("/api/tasks",{type},"Task started ("+type+")");
 }
 async function loadTLF(evt, tableId){
-  if(!evt.target.open || S.tlf[tableId]) return;
-  const t = await api("/api/tlf/"+tableId);
-  S.tlf[tableId] = t;
+  if(evt && !evt.target.open) return;
+  if(!S.tlf[tableId]){
+    const t = await api("/api/tlf/"+tableId);
+    if(t.error) return;           // never cache errors — allow retry
+    S.tlf[tableId] = t;
+  }
+  renderTLF(tableId);
+}
+function renderTLF(tableId){
+  const t = S.tlf[tableId];
   const el = document.getElementById("tlf_"+tableId.replace(/\./g,"_"));
-  if(!el || t.error) return;
+  if(!el || !t) return;
   el.innerHTML = `<div style="overflow-x:auto"><table class="tlftable">
     <caption style="caption-side:top;text-align:left;padding:4px 0" class="small"><b>${esc(t.table_id)}</b> — ${esc(t.title)} · ${esc(t.population)}</caption>
     <tr><th></th>${t.columns.map(cn=>`<th>${esc(cn.label)}</th>`).join("")}</tr>

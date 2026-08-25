@@ -120,11 +120,32 @@ class App:
         }
 
     # ------------------------------ actions ---------------------------- #
+    def _node_busy(self, node: str) -> str | None:
+        for t in self.store.list_tasks(limit=200):
+            if (t.get("target_node") == node
+                    and t["status"] in ("created", "running", "pending_review")):
+                return t["id"]
+        return None
+
     def run_task(self, body: dict) -> dict:
         ttype = body.get("type", "efficacy")
         fault = body.get("fault_id") or None
         if fault is not None and fault not in FAULTS:
             return {"error": f"unknown fault {fault}"}
+        # one active task per document node — duplicates create stale
+        # proposals that can never be decided
+        if ttype == "efficacy" and not fault:
+            busy = self._node_busy("csr/11.4.1")
+            if busy:
+                return {"error": f"§11.4.1 already has an active task ({busy}); "
+                                 f"decide it first"}
+        if ttype == "narrative":
+            from .workflow import find_narrative_subject
+            usubjid_chk = body.get("usubjid") or find_narrative_subject(self.snapshot)
+            busy = self._node_busy(f"csr/12.3.2/{usubjid_chk}")
+            if busy:
+                return {"error": f"a narrative task for {usubjid_chk} is "
+                                 f"already active ({busy}); decide it first"}
         if ttype == "efficacy":
             job = _start_job("task", lambda: run_efficacy_task(
                 self.store, self.backend, fault_id=fault,

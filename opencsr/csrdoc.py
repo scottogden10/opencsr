@@ -54,7 +54,14 @@ def narrative_subjects(snapshot: Snapshot) -> list[dict]:
         if r["AEOUT"] == "FATAL":
             s["fatal"] = True
     for usubjid, r in adsl.items():
-        if r.get("DTHFL") == "Y" and usubjid not in subjects:
+        if r.get("DTHFL") != "Y":
+            continue
+        if usubjid in subjects:
+            # a death always outranks the subject's non-fatal SAEs
+            subjects[usubjid]["fatal"] = True
+            subjects[usubjid]["events"].append(
+                r.get("DCSREAS", "death").title())
+        else:
             subjects[usubjid] = {
                 "usubjid": usubjid, "arm": r.get("TRT01P", ""),
                 "events": [r.get("DCSREAS", "cause not recorded").title()],
@@ -72,11 +79,12 @@ def _node_status(store: Store, tasks: list[dict], node: str) -> dict:
     """Resolve one document node's lifecycle state."""
     doc = store.latest_document(node)
     node_tasks = [t for t in tasks if t.get("target_node") == node]
+    # list_tasks orders created_at DESC — index 0 is the NEWEST task
     pending = [t for t in node_tasks if t["status"] == "pending_review"]
     running = [t for t in node_tasks if t["status"] == "running"]
     status: dict = {"node": node}
     if pending:
-        t = pending[-1]
+        t = pending[0]
         status.update({
             "state": "in_review", "task_id": t["id"],
             "reviewer_role": REVIEWER_ROLES.get(t["task_type"], "Reviewer")})
@@ -84,7 +92,7 @@ def _node_status(store: Store, tasks: list[dict], node: str) -> dict:
         if props:
             status["excerpt"] = props[-1]["text"][:220]
     elif running:
-        status.update({"state": "drafting", "task_id": running[-1]["id"]})
+        status.update({"state": "drafting", "task_id": running[0]["id"]})
     elif doc:
         status.update({
             "state": "populated", "version": doc["version"],

@@ -383,10 +383,12 @@ def validate_narrative(snapshot: Snapshot, text: str, usubjid: str) -> tuple[lis
                  "event": adsl.get("DCSREAS", "death").title(),
                  "grade": "", "action": "", "outcome": "FATAL",
                  "onset_day": ""}
+        # no causality element here: ADSL carries no relatedness assessment,
+        # so requiring one would force the narrative to invent it
         elements = {k: v for k, v in NARRATIVE_ELEMENTS.items()
                     if k in ("patient identifier", "age and sex",
                              "study drug and dose", "event term",
-                             "outcome", "causality")}
+                             "outcome")}
         issues = []
         present = 0
         for name, fn in elements.items():
@@ -418,6 +420,7 @@ def validate_narrative(snapshot: Snapshot, text: str, usubjid: str) -> tuple[lis
              "grade": ae["ATOXGR"], "action": ae["AEACN"],
              "outcome": ae["AEOUT"], "onset_day": onset_day}
     present = 0
+    total = len(NARRATIVE_ELEMENTS)
     for name, fn in NARRATIVE_ELEMENTS.items():
         try:
             ok = fn(text, facts)
@@ -430,7 +433,18 @@ def validate_narrative(snapshot: Snapshot, text: str, usubjid: str) -> tuple[lis
                 "missing_required_content", "medium",
                 f"Narrative missing ICH E3 12.3.2 element: {name}.",
                 {"usubjid": usubjid}))
-    coverage = present / len(NARRATIVE_ELEMENTS)
+    # a subject who died must have the death reported even when the drafted
+    # SAE itself was non-fatal (deaths in follow-up, disease progression)
+    if adsl.get("DTHFL") == "Y":
+        total += 1
+        if re.search(r"\b(died|death|fatal)\b", text, re.I):
+            present += 1
+        else:
+            issues.append(_mkissue(
+                "missing_required_content", "medium",
+                f"Subject {usubjid} died (DTHFL=Y); the narrative must "
+                f"report the death and its date.", {"usubjid": usubjid}))
+    coverage = present / total
     return issues, {"narrative_coverage": round(coverage, 3)}
 
 

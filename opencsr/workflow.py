@@ -303,6 +303,9 @@ def apply_decision(store: Store, task_id: str, decision: str,
         current_version = latest["version"] if latest else 0
         if current_version != proposal["base_version"]:
             store.update_fields("proposals", proposal["id"], status="stale")
+            # close the task too — a stale proposal can never be decided, so
+            # leaving it pending would wedge the review queue and the CSR view
+            store.update_task(task_id, status="closed_stale")
             store.audit("proposed_change.stale", task_id, {"actor": actor},
                         {"proposal": proposal["id"],
                          "base_version": proposal["base_version"],
