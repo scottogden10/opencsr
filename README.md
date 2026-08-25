@@ -46,10 +46,19 @@ That's it — Python 3.10+ standard library only.
 | 4 | **Hill climb**: baseline eval → the skill-smith agent proposes minimal skill rules from feedback + eval failures (each with a hypothesis) → every candidate replays the full regression corpus → promoted **only** if all hard gates hold and the score improves. Score: **68 → 100**. | Governed self-improvement, not vibes |
 | 5 | The §11.4.1 task again at the promoted skills: first-pass clean, **zero revisions, accepted as proposed**. Document v2. | The system actually learned |
 
-Open the workbench (`python3 serve.py`) to inspect every claim, its exact
-evidence locator (`table://T14.2.1/row/orr_confirmed/col/arm_100`), every
-issue, decision, skill version diff, and the append-only audit trail — or
-run new tasks, seed faults, review proposals yourself, and re-run the climb.
+Open the workbench (`python3 serve.py`) and land on the **CSR tab — the
+report assembling itself**: the ICH E3 outline with every section's state
+(shell → pending → agents drafting → **awaiting a named human role** →
+populated, with its approver → final locked TLF, rendered inline), a
+progress bar, and the full §12.3.2 narrative workload (every death and SAE
+subject) with per-subject "Draft with agents" buttons. Review queues are
+grouped by human role (Medical Writer, Safety/Pharmacovigilance); decisions
+are made *as* a role and stamped into the ledger; actor chips distinguish
+HUMAN / simulated reviewer / AI agent / rule engine everywhere. From there,
+inspect any claim's exact evidence locator
+(`table://T14.2.1/row/orr_confirmed/col/arm_100`), seed faults, and re-run
+the climb. A presenter's walkthrough lives in
+[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
 ---
 
@@ -73,6 +82,9 @@ export ANTHROPIC_API_KEY=sk-ant-...   # or: ant auth login
 
 .venv/bin/python run_demo.py --backend managed   # autonomous demo, live agents
 .venv/bin/python serve.py   --backend managed    # workbench with live agents
+
+# fast/cheap demo variant (Sonnet agents, ~3x cheaper and faster):
+OPENCSR_MODEL=claude-sonnet-5 .venv/bin/python serve.py --backend managed
 ```
 
 Notes:
