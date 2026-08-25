@@ -10,6 +10,7 @@ same workflow, governance, eval, and hill-climb code paths as run_demo.py.
 from __future__ import annotations
 
 import json
+import os
 import socketserver
 import threading
 import traceback
@@ -236,7 +237,10 @@ def make_handler(app: App, allowed_hosts: set[str]):
         def _host_ok(self) -> bool:
             # Host allowlist defeats DNS rebinding: a hostile domain that
             # resolves to 127.0.0.1 still sends its own Host header.
-            return self.headers.get("Host", "").lower() in allowed_hosts
+            if "*" in allowed_hosts:
+                return True
+            h = self.headers.get("Host", "").lower()
+            return h in allowed_hosts or h.split(":")[0] in allowed_hosts
 
         def _send(self, code: int, payload, content_type="application/json"):
             body = (payload if isinstance(payload, bytes)
@@ -321,6 +325,15 @@ def serve(db_path: str = "opencsr.db", backend: str = "mock",
     app = App(db_path, backend)
     allowed_hosts = {f"{host}:{port}", f"127.0.0.1:{port}",
                      f"localhost:{port}"}
+    # Hosted deployments: OPENCSR_ALLOWED_HOSTS="demo.example.com,other.com"
+    # adds public hostnames (matched with or without a port); "*" disables
+    # the check entirely — acceptable only for a keyless public mock demo.
+    extra = os.environ.get("OPENCSR_ALLOWED_HOSTS", "")
+    for h in extra.split(","):
+        h = h.strip().lower()
+        if h:
+            allowed_hosts.add(h)
+            allowed_hosts.add(f"{h}:{port}")
     httpd = _Server((host, port), make_handler(app, allowed_hosts))
     print(f"OpenCSR workbench: http://{host}:{port}  "
           f"(backend: {backend}, ledger: {db_path})")

@@ -199,16 +199,43 @@ tests/                         14 offline regression tests
 docs/                          DBL→submission research, architecture notes
 ```
 
-## Deploying your own copy
+## Deploying it so people can use it
 
+The mock backend needs **no API key**, which makes a free public demo
+possible. Four paths, easiest first:
+
+**1. Zero-install, local (anyone with a Mac/Linux/Windows+Python):**
 ```bash
-git init && git add -A && git commit -m "OpenCSR demo"
-gh repo create my-opencsr --public --source . --push
+git clone https://github.com/scottogden10/opencsr && cd opencsr
+python3 run_demo.py && python3 serve.py     # → http://127.0.0.1:8734
 ```
 
-Everything is self-contained; GitHub Actions CI (`.github/workflows/ci.yml`)
-regenerates the synthetic data, runs the tests, and runs the full offline
-demo on every push.
+**2. GitHub Codespaces (zero-install, in the browser):** open the repo on
+GitHub → Code → *Create codespace*. The devcontainer seeds the demo and
+starts the workbench automatically; the forwarded port opens in a browser
+tab. Free tier is plenty.
+
+**3. Hosted public demo (a URL you can put in a README or a deck):** the
+included `Dockerfile` seeds the five-act story on every container start
+and serves the workbench. It runs as-is on
+[Render](https://render.com) / [Railway](https://railway.app) /
+[Fly.io](https://fly.io) (new web service → point at this repo →
+autodetect Dockerfile), or a
+[Hugging Face Docker Space](https://huggingface.co/new-space)
+(add `app_port: 8734` to the Space README front matter). Free tiers work;
+an ephemeral filesystem is a feature — every restart is a fresh demo.
+Note: visitors share one demo ledger (there's a Reset button); that's fine
+for a demo, not a product.
+
+**4. Live mode for a team (real Claude agents):** run backend `managed`
+behind something private — a laptop + screen share, Tailscale, or an
+authenticated proxy — with the API key in `.opencsr/api_key` or
+`ANTHROPIC_API_KEY`. Never expose live mode on a public URL: the key pays
+for every visitor's clicks. Budget caps ($2.50/session), per-agent tool
+ceilings, and the header spend meter keep costs visible.
+
+GitHub Actions CI (`.github/workflows/ci.yml`) regenerates the synthetic
+data, runs the tests, and replays the full offline demo on every push.
 
 ## License
 

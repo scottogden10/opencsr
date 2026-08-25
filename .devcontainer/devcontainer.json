@@ -1,0 +1,9 @@
+{
+  "name": "OpenCSR",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "python run_demo.py",
+  "postStartCommand": "nohup python serve.py --host 0.0.0.0 > /tmp/opencsr.log 2>&1 &",
+  "containerEnv": { "OPENCSR_ALLOWED_HOSTS": "*" },
+  "forwardPorts": [8734],
+  "portsAttributes": { "8734": { "label": "OpenCSR workbench", "onAutoForward": "openBrowser" } }
+}

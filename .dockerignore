@@ -1,0 +1,8 @@
+.git
+.venv
+.opencsr
+__pycache__
+*.pyc
+opencsr.db*
+demo_summary.json
+nohup.out
