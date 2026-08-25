@@ -170,8 +170,11 @@ class App:
             cases = [c for c in cases if c in valid]
             if not cases:
                 return {"error": "no valid cases in scope"}
+        margin = float(body.get(
+            "min_improvement", 1.0 if self.backend_name == "managed" else 0.0))
         job = _start_job("hillclimb", lambda: run_hillclimb(
-            self.store, self.backend, max_rounds=rounds, cases=cases))
+            self.store, self.backend, max_rounds=rounds, cases=cases,
+            min_improvement=margin))
         return {"job_id": job}
 
     def skill_detail(self, name: str) -> dict:

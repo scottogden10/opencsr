@@ -148,6 +148,43 @@ class TestReviewRegressions(unittest.TestCase):
         allowed = _allowed_numbers([], snap)
         self.assertIn("05", allowed)  # zero-padded cutoff month
 
+    def test_arm_normalization(self):
+        from opencsr.validators import normalize_arm
+        snap = Snapshot()
+        for raw in ("arm_100", "Examplinib 100 mg", "examplinib 100 mg arm",
+                    "Examplinib 100 mg (N=38)", "100 mg"):
+            self.assertEqual(normalize_arm(raw, snap), "arm_100", raw)
+        self.assertEqual(normalize_arm("Examplinib 50 mg", snap), "arm_50")
+        self.assertIsNone(normalize_arm("placebo", snap))
+
+    def test_gold_matcher_tolerates_live_claim_shapes(self):
+        # live agents may use prose arm labels and split values across
+        # claims; the matcher scores clinical content, not schema guessing
+        import json as _json
+        from opencsr.evals import match_gold_claims
+        facts = _json.loads((Path(__file__).resolve().parent.parent /
+                             "evals" / "gold" / "gold_facts.json").read_text())
+        claims = [
+            {"claim_type": "efficacy_result",
+             "dimensions": {"treatment_arm": "Examplinib 100 mg"},
+             "value": {"numerator": 16, "denominator": 38,
+                       "estimate_pct": 42.1}},
+            {"claim_type": "efficacy_result",
+             "dimensions": {"treatment_arm": "examplinib 100 mg arm"},
+             "value": {"ci_lower_pct": 26.3, "ci_upper_pct": 59.2}},
+            {"claim_type": "efficacy_result",
+             "dimensions": {"treatment_arm": "Examplinib 50 mg"},
+             "value": {"numerator": 10, "denominator": 37,
+                       "estimate_pct": 27.0, "ci_lower_pct": 13.8,
+                       "ci_upper_pct": 44.1}},
+        ]
+        matched, checked = match_gold_claims(claims, facts)
+        self.assertEqual((matched, checked), (10, 10))
+        # and wrong numbers still fail
+        claims[2]["value"]["numerator"] = 12
+        matched, _ = match_gold_claims(claims, facts)
+        self.assertEqual(matched, 9)
+
     def test_failed_eval_case_is_failure_shaped(self):
         from opencsr.evals import _case_gold_efficacy
 

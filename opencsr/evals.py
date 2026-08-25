@@ -41,6 +41,45 @@ def _load_gold():
     return facts, expected
 
 
+GOLD_FIELDS = ("numerator", "denominator", "estimate_pct",
+               "ci_lower_pct", "ci_upper_pct")
+
+
+def match_gold_claims(claims: list[dict], facts: dict,
+                      snapshot: Snapshot | None = None) -> tuple[int, int]:
+    """Score registered efficacy claims against the gold facts.
+
+    Deliberately tolerant of claim STRUCTURE: arms are normalized (an agent
+    may write "Examplinib 100 mg" instead of the column id), and each gold
+    field matches if ANY of that arm's efficacy claims carries the value —
+    the eval measures whether the reported numbers exist as validated
+    claims, not whether the agent guessed our internal schema."""
+    from .validators import normalize_arm
+    snapshot = snapshot or Snapshot()
+    by_arm: dict[str, list[dict]] = {}
+    for c in claims:
+        if c.get("claim_type") != "efficacy_result":
+            continue
+        arm = normalize_arm(c.get("dimensions", {}).get("treatment_arm", ""),
+                            snapshot)
+        if arm:
+            by_arm.setdefault(arm, []).append(c)
+    matched = checked = 0
+    for arm in ("arm_100", "arm_50"):
+        gold = facts["orr_confirmed"][arm]
+        for field in GOLD_FIELDS:
+            checked += 1
+            for c in by_arm.get(arm, []):
+                v = c.get("value", {}).get(field)
+                try:
+                    if v is not None and abs(float(v) - float(gold[field])) < 0.05:
+                        matched += 1
+                        break
+                except (TypeError, ValueError):
+                    continue
+    return matched, checked
+
+
 def _case_gold_efficacy(estore: Store, backend, override) -> dict:
     facts, _ = _load_gold()
     tid = run_efficacy_task(estore, backend, skills_override=override)
@@ -58,19 +97,7 @@ def _case_gold_efficacy(estore: Store, backend, override) -> dict:
                 "document_written": False, "capability_violations": 0}
     res = task["result"]
     claims = estore.by_task("claims", tid)
-    eff = {c["dimensions"].get("treatment_arm"): c for c in claims
-           if c["claim_type"] == "efficacy_result"}
-    checked = matched = 0
-    for arm in ("arm_100", "arm_50"):
-        gold = facts["orr_confirmed"][arm]
-        got = eff.get(arm, {}).get("value", {})
-        for gk, ck in (("numerator", "numerator"), ("denominator", "denominator"),
-                       ("estimate_pct", "estimate_pct"),
-                       ("ci_lower_pct", "ci_lower_pct"),
-                       ("ci_upper_pct", "ci_upper_pct")):
-            checked += 1
-            if got.get(ck) is not None and abs(float(got[ck]) - float(gold[gk])) < 0.05:
-                matched += 1
+    matched, checked = match_gold_claims(claims, facts)
     review = simulate_review(estore, tid)
     doc = estore.latest_document("csr/11.4.1")
     prop = estore.by_task("proposals", tid)[-1]

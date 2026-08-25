@@ -36,9 +36,25 @@ def _candidate_content(skill_name: str, rule_text: str) -> tuple[str, int, str]:
             new_version, cur["description"])
 
 
+# Which eval cases can possibly observe a change to each skill. Candidates
+# whose skill has no exercised case in a scoped run are skipped — an eval
+# that cannot see the change can only reject it (pure wasted spend).
+SKILL_OBSERVED_BY = {
+    "csr-efficacy-reporting": {"gold_efficacy"},
+    "numeric-conventions": {"gold_efficacy", "narrative"},
+    "patient-narrative": {"narrative"},
+}
+
+
 def run_hillclimb(store: Store, backend, max_rounds: int = 3,
-                  cases: list[str] | None = None) -> dict:
-    """Greedy, gate-protected hill climb. Returns a full history."""
+                  cases: list[str] | None = None,
+                  min_improvement: float = 0.0) -> dict:
+    """Greedy, gate-protected hill climb. Returns a full history.
+
+    `min_improvement` is the promotion margin: candidates must beat the
+    baseline score by more than this. Keep 0 for the deterministic mock
+    backend; use a positive margin on live backends where run-to-run
+    variance could otherwise promote noise."""
     history = []
     baseline = run_eval_corpus(store, backend, label="baseline", cases=cases)
     history.append({"stage": "baseline", "eval": _slim(baseline)})
@@ -69,13 +85,26 @@ def run_hillclimb(store: Store, backend, max_rounds: int = 3,
 
         for cand in candidates:
             skill = cand["skill"]
+            if cases is not None:
+                observers = SKILL_OBSERVED_BY.get(skill)
+                if observers and not (set(cases) & observers):
+                    history.append({
+                        "stage": f"round{rnd}", "candidate_skipped": cand,
+                        "note": f"skipped: no case in scope can observe "
+                                f"changes to '{skill}'"})
+                    store.audit("skill.candidate_skipped", None,
+                                {"actor": "hillclimb"},
+                                {"skill": skill,
+                                 "rule": cand.get("rule_marker"),
+                                 "reason": "not observable in scoped corpus"})
+                    continue
             content, new_version, description = _candidate_content(
                 skill, cand["rule_text"])
             label = f"candidate:{skill}@v{new_version}:{cand['rule_marker']}"
             cand_eval = run_eval_corpus(store, backend,
                                         skills_override={skill: content},
                                         label=label, cases=cases)
-            improved = cand_eval["score"] > baseline["score"]
+            improved = cand_eval["score"] > baseline["score"] + min_improvement
             gates_ok = cand_eval["gates_passed"]
             # A candidate may not regress a passing gate even if score rises.
             regressed = [g for g, ok in baseline["hard_gates"].items()

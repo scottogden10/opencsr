@@ -49,6 +49,13 @@ values (numerator, denominator, estimate_pct, ci_lower_pct, ci_upper_pct).
 
 - Every efficacy_result claim takes its values from a registered TLF cell
   (support_class "direct", evidence_ids pointing at the cell + footnotes).
+- Dimension vocabulary (exact): `treatment_arm` is the TLF COLUMN ID from
+  the cell locator (e.g. "arm_100", "arm_50" — never a prose label);
+  `endpoint` for the primary result is "confirmed_orr"; `population` is the
+  canonical population name. The primary claim for each arm must carry ALL
+  of numerator, denominator, estimate_pct, ci_lower_pct, ci_upper_pct in
+  `value`. Additional per-category claims (CR, PR, ...) are welcome but
+  never replace the primary confirmed-ORR claim.
 - Cross-check every reported CI with the exact_binomial_ci calculator and
   every count with a query_dataset recount; raise a `numeric_mismatch` or
   `source_conflict` issue on any disagreement — do not "fix" numbers.
