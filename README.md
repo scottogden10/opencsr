@@ -97,10 +97,10 @@ Notes:
 - Every session prints a **Console trace link** so you can watch the agent's
   tool calls live (`https://platform.claude.com/...`). Sessions are kept for
   inspection by default.
-- Each session carries a **$5 list-cost budget cap** (configurable in
-  `opencsr/agents/live.py`); a full demo run executes ~10 sessions plus the
-  eval corpus, so start with a single task from the workbench if you want to
-  watch costs.
+- Each session carries a **$2.50 list-cost budget cap** (env
+  `OPENCSR_SESSION_BUDGET_USD`), agents have per-tool-call ceilings, and a
+  persistent spend meter shows in the workbench header. For scale: the
+  entire multi-climb development program cost ~$16 at list.
 - The sandbox gets **no tools except OpenCSR's custom clinical tools** — no
   bash, no filesystem, no web — and the environment uses deny-by-default
   networking. Trial data never leaves your process except through governed
