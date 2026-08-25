@@ -35,9 +35,12 @@ ENV_NAME = "opencsr-clinical-v1"
 class ManagedBackend:
     name = "managed"
 
-    def __init__(self, model: str | None = None, budget_usd: float = 2.5,
+    def __init__(self, model: str | None = None, budget_usd: float | None = None,
                  keep_sessions: bool = True, max_reconnects: int = 4,
                  verbose: bool = True):
+        if budget_usd is None:
+            budget_usd = float(os.environ.get("OPENCSR_SESSION_BUDGET_USD",
+                                              "2.5"))
         try:
             import anthropic
         except ImportError as e:

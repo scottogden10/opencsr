@@ -13,6 +13,8 @@
 
 FROM python:3.12-slim
 WORKDIR /app
+# the offline demo is stdlib-only; the SDK is needed for live (managed) mode
+RUN pip install --no-cache-dir "anthropic>=0.92.0"
 COPY . .
 ENV PYTHONUNBUFFERED=1 \
     OPENCSR_ALLOWED_HOSTS=*

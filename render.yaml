@@ -25,6 +25,8 @@ services:
       - key: OPENCSR_ACCESS_CODE
         sync: false
       - key: OPENCSR_SPEND_LIMIT_USD
-        value: "25"
+        value: "500"
+      - key: OPENCSR_SESSION_BUDGET_USD
+        value: "20"
       - key: OPENCSR_ALLOWED_HOSTS
         value: "*"
