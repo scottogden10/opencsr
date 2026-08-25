@@ -87,9 +87,24 @@ free and runs in CI on every push. Guardrails: $2.50/session hard budget
 caps, per-agent tool-call ceilings, and a persistent spend meter in the
 workbench header.
 
-## 5. Narrative-scoped live climb (ceiling 90)
+## 5. Narrative-scoped live climb (ceiling 90) — final
 
-RESULT_PENDING
+The wider scope produced two more harness findings before its clean run:
+an over-tight tool ceiling truncated the biostat agent (fix: measured-size
+caps + finalization tools exempt from the ceiling + an audited stage-retry
+when zero claims land), and a gates-failing baseline let one candidate's
+healthy run masquerade as a +75-point improvement — promoted, caught by
+audit, **rolled back on the record**, and the harness now refuses to run
+candidates against any baseline whose hard gates fail.
+
+On the fixed harness: **baseline 90.00 of a 90-point ceiling, all gates
+PASS** — numeric 1.0, provenance 1.0, and a 9/9-element ICH E3 12.3.2
+narrative first pass. Both recorded candidates were refused: one at
+exactly baseline (margin), one at **85.00 — measurably worse**. (The round
+was interrupted by an operator restart after those two refusals; the
+baseline and refusals stand.) Across five live climbs: **zero false
+promotions surviving audit, zero gate escapes, $16.00 total list cost.**
+The complete analysis, tables, and figures: the CSRBench report.
 
 ## 6. Limitations
 
