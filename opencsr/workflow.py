@@ -110,13 +110,31 @@ def run_efficacy_task(store: Store, backend, fault_id: str | None = None,
               "T14.2.1, and every governing footnote.",
               snapshot, skills_override, config)
 
-    # 2) claims
-    run_stage(store, backend, task_id, "biostat",
-              "Task: construct typed claims for the CSR 11.4.1 primary "
-              "efficacy paragraph from the registered evidence. Cross-check "
-              "every value with the validated calculator and dataset "
-              "recounts; raise issues for any disagreement.",
-              snapshot, skills_override, config)
+    # 2) claims — with a stage postcondition: the writer cannot work from
+    # zero efficacy claims, so an empty biostat output gets one retry with
+    # an explicit instruction (live agents occasionally check everything
+    # and forget to register)
+    biostat_brief = ("Task: construct typed claims for the CSR 11.4.1 primary "
+                     "efficacy paragraph from the registered evidence. "
+                     "Cross-check every value with the validated calculator "
+                     "and dataset recounts; raise issues for any disagreement.")
+    for attempt in range(2):
+        run_stage(store, backend, task_id, "biostat",
+                  biostat_brief if attempt == 0 else
+                  biostat_brief + "\n\nRETRY: your previous run registered NO "
+                  "efficacy_result claims. Registering claims via "
+                  "create_claims is your PRIMARY deliverable — do it FIRST "
+                  "(one claim per arm with all value fields), then "
+                  "cross-check, then submit_report.",
+                  snapshot, skills_override, config)
+        n_eff = sum(1 for c in store.by_task("claims", task_id)
+                    if c["claim_type"] == "efficacy_result")
+        if n_eff > 0:
+            break
+        store.audit("stage.postcondition_failed", task_id,
+                    {"actor": "runtime"},
+                    {"stage": "biostat", "attempt": attempt,
+                     "reason": "no efficacy_result claims registered"})
 
     claim_issue_dicts = validate_claims(store, snapshot, task_id)
     _store_issues(store, task_id, claim_issue_dicts, "validator")

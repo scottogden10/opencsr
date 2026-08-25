@@ -59,6 +59,22 @@ def run_hillclimb(store: Store, backend, max_rounds: int = 3,
     baseline = run_eval_corpus(store, backend, label="baseline", cases=cases)
     history.append({"stage": "baseline", "eval": _slim(baseline)})
 
+    # A baseline with failing hard gates invalidates every comparison: any
+    # healthy candidate run would look like a huge improvement, laundering
+    # run-to-run variance into a promotion. Fix the system, then climb.
+    if not baseline["gates_passed"]:
+        history.append({"stage": "aborted",
+                        "note": "baseline hard gates failing — comparisons "
+                                "against a broken baseline are meaningless; "
+                                "no candidates evaluated"})
+        store.audit("hillclimb.aborted", None, {"actor": "hillclimb"},
+                    {"reason": "baseline gates failed",
+                     "gates": baseline["hard_gates"],
+                     "eval_id": baseline["eval_id"]})
+        return {"history": history,
+                "baseline_score": baseline["score"],
+                "final_score": baseline["score"], "improved": False}
+
     for rnd in range(1, max_rounds + 1):
         feedback = _all_feedback(store)
         signals = {"feedback": feedback,

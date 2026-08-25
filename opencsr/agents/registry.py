@@ -13,8 +13,13 @@ from ..skills import compile_prompt
 # Per-agent tool-call soft ceilings (live backend). Reaching one does NOT
 # cut the session: the agent is told to finalize, and only submit_* tools
 # execute from then on. A hard interrupt sits a few calls above as backstop.
-TOOL_BUDGETS = {"evidence": 35, "biostat": 45, "writer": 15, "qc": 45,
+TOOL_BUDGETS = {"evidence": 35, "biostat": 60, "writer": 15, "qc": 50,
                 "narrative": 25, "skillsmith": 8}
+
+# Tools an agent may still execute after its soft ceiling: finalization is
+# not just submit_* — registering conclusions (claims/evidence/issues) IS
+# finalizing. Blocking create_claims at the cap starves the whole pipeline.
+FINALIZE_TOOLS = {"create_claims", "create_evidence", "raise_issue"}
 
 AGENTS: dict[str, dict] = {
     "evidence": {

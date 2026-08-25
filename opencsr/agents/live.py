@@ -315,11 +315,17 @@ class ManagedBackend:
         cap = min(budgets.get("max_tool_calls", 60),
                   TOOL_BUDGETS.get(agent_name, 40))
 
+        from .registry import FINALIZE_TOOLS
+
         def handler(name, tool_input):
-            # past the soft ceiling, only finalization tools execute
-            if gateway.calls >= cap and not name.startswith("submit_"):
-                return ({"error": "Tool budget exhausted. Call your submit_* "
-                                  "tool NOW with what you already have."},
+            # past the soft ceiling, only finalization tools execute —
+            # which includes registering claims/evidence/issues, not just
+            # the submit_* call itself
+            if (gateway.calls >= cap and not name.startswith("submit_")
+                    and name not in FINALIZE_TOOLS):
+                return ({"error": "Tool budget exhausted. Register your "
+                                  "conclusions (create_claims / raise_issue) "
+                                  "and call your submit_* tool NOW."},
                         gateway.finished)
             result = gateway.call(name, tool_input)
             return result, gateway.finished
