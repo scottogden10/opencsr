@@ -1,12 +1,30 @@
-# One-click Render blueprint: hosts the OpenCSR workbench publicly in mock
-# mode (no API key, deterministic demo, free tier).
+# One-click Render blueprint for a SHARED LIVE OpenCSR demo:
 #   https://render.com/deploy?repo=https://github.com/scottogden10/opencsr
+#
+# At deploy time Render prompts for the two secrets (sync: false) — the API
+# key and an access code for the shareable link. Neither ever lives in git.
+# Set OPENCSR_BACKEND to "mock" instead for a keyless public demo.
+#
+# Defense in depth for the key: visitors need the access code; live jobs
+# run one at a time; the app stops starting agent work at
+# OPENCSR_SPEND_LIMIT_USD; every session has a $2.50 list-cost cap; and you
+# should ALSO set a hard workspace spend limit in the Anthropic Console.
 services:
   - type: web
     name: opencsr-demo
     runtime: docker
     plan: free
-    healthCheckPath: /api/state
+    healthCheckPath: /healthz
     envVars:
+      - key: OPENCSR_BACKEND
+        value: managed
+      - key: OPENCSR_MODEL
+        value: claude-sonnet-5
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENCSR_ACCESS_CODE
+        sync: false
+      - key: OPENCSR_SPEND_LIMIT_USD
+        value: "25"
       - key: OPENCSR_ALLOWED_HOSTS
         value: "*"

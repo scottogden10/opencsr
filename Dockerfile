@@ -17,4 +17,6 @@ COPY . .
 ENV PYTHONUNBUFFERED=1 \
     OPENCSR_ALLOWED_HOSTS=*
 EXPOSE 8734
+# OPENCSR_BACKEND=managed (+ ANTHROPIC_API_KEY, OPENCSR_ACCESS_CODE,
+# OPENCSR_SPEND_LIMIT_USD) turns the same image into a shared LIVE demo.
 CMD ["sh", "-c", "python run_demo.py --force && python serve.py --host 0.0.0.0 --port ${PORT:-8734}"]

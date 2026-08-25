@@ -130,6 +130,26 @@ class App:
         }
 
     # ------------------------------ actions ---------------------------- #
+    def _live_guard(self) -> dict | None:
+        """For shared live deployments: refuse new agent work past the demo
+        spend ceiling, and run one live job at a time so spend is serial
+        and visible. Mock mode is never guarded."""
+        if self.backend_name != "managed":
+            return None
+        limit = float(os.environ.get("OPENCSR_SPEND_LIMIT_USD", "25"))
+        spent = self.state()["live_spend_usd"]
+        if spent >= limit:
+            return {"error": f"demo spend ceiling reached (${spent:.2f} of "
+                             f"${limit:.2f} list). The host can raise "
+                             f"OPENCSR_SPEND_LIMIT_USD."}
+        with _jobs_lock:
+            running = [j for j in _jobs.values() if j["status"] == "running"]
+        if running:
+            return {"error": "another agent job is already running — live "
+                             "work is serialized so spend stays visible; "
+                             "try again when it finishes"}
+        return None
+
     def _node_busy(self, node: str) -> str | None:
         for t in self.store.list_tasks(limit=200):
             if (t.get("target_node") == node
@@ -138,6 +158,9 @@ class App:
         return None
 
     def run_task(self, body: dict) -> dict:
+        guard = self._live_guard()
+        if guard:
+            return guard
         ttype = body.get("type", "efficacy")
         fault = body.get("fault_id") or None
         if fault is not None and fault not in FAULTS:
@@ -187,12 +210,18 @@ class App:
         return simulate_review(self.store, body["task_id"], persona=persona)
 
     def run_evals(self, body: dict) -> dict:
+        guard = self._live_guard()
+        if guard:
+            return guard
         label = body.get("label", "manual")
         job = _start_job("eval", lambda: run_eval_corpus(
             self.store, self.backend, label=label))
         return {"job_id": job}
 
     def run_climb(self, body: dict) -> dict:
+        guard = self._live_guard()
+        if guard:
+            return guard
         rounds = int(body.get("rounds", 3))
         cases = body.get("cases") or None
         if cases is not None:
@@ -233,7 +262,23 @@ class App:
 
 
 def make_handler(app: App, allowed_hosts: set[str]):
+    access_code = os.environ.get("OPENCSR_ACCESS_CODE", "")
+
     class Handler(BaseHTTPRequestHandler):
+        def _authed(self):
+            """Shared-link gate: when OPENCSR_ACCESS_CODE is set, visitors
+            need the code once (?code=...) and get a cookie. Returns True,
+            False, or 'grant' (code just supplied — set the cookie)."""
+            if not access_code:
+                return True
+            if f"opencsr_code={access_code}" in self.headers.get("Cookie", ""):
+                return True
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            if q.get("code", [None])[0] == access_code:
+                return "grant"
+            return False
+
         def _host_ok(self) -> bool:
             # Host allowlist defeats DNS rebinding: a hostile domain that
             # resolves to 127.0.0.1 still sends its own Host header.
@@ -256,23 +301,49 @@ def make_handler(app: App, allowed_hosts: set[str]):
 
         def do_GET(self):  # noqa: N802
             try:
+                from urllib.parse import urlparse
+                path = urlparse(self.path).path
+                if path == "/healthz":   # host health checks, pre-auth
+                    self._send(200, {"ok": True})
+                    return
                 if not self._host_ok():
                     self._send(403, {"error": "unrecognized Host header"})
                     return
-                if self.path in ("/", "/index.html"):
+                auth = self._authed()
+                if auth == "grant":
+                    body = b"granted"
+                    self.send_response(302)
+                    self.send_header("Location", "/")
+                    self.send_header("Set-Cookie",
+                                     f"opencsr_code={os.environ['OPENCSR_ACCESS_CODE']}"
+                                     f"; Path=/; HttpOnly; SameSite=Lax")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                if not auth:
+                    self._send(401, (
+                        b"<meta charset='utf-8'><body style='font-family:sans-serif;"
+                        b"background:#10171a;color:#e6ecec;display:grid;place-items:center;"
+                        b"height:100vh'><form><h2>OpenCSR demo</h2>"
+                        b"<p>Enter the access code you were given:</p>"
+                        b"<input name='code' autofocus> <button>Enter</button>"
+                        b"</form></body>"), "text/html; charset=utf-8")
+                    return
+                if path in ("/", "/index.html"):
                     self._send(200, UI_PATH.read_bytes(),
                                "text/html; charset=utf-8")
-                elif self.path == "/api/state":
+                elif path == "/api/state":
                     self._send(200, app.state())
-                elif self.path.startswith("/api/tasks/"):
-                    self._send(200, app.task_detail(self.path.split("/")[-1]))
-                elif self.path.startswith("/api/tlf/"):
-                    tid = self.path.split("/")[-1]
+                elif path.startswith("/api/tasks/"):
+                    self._send(200, app.task_detail(path.split("/")[-1]))
+                elif path.startswith("/api/tlf/"):
+                    tid = path.split("/")[-1]
                     table = app.snapshot.tables.get(tid)
                     self._send(200 if table else 404,
                                table or {"error": f"unknown table {tid}"})
-                elif self.path.startswith("/api/skills/"):
-                    self._send(200, app.skill_detail(self.path.split("/")[-1]))
+                elif path.startswith("/api/skills/"):
+                    self._send(200, app.skill_detail(path.split("/")[-1]))
                 else:
                     self._send(404, {"error": "not found"})
             except Exception as e:  # noqa: BLE001
@@ -286,6 +357,9 @@ def make_handler(app: App, allowed_hosts: set[str]):
                 # answer), and an Origin check against the allowlist.
                 if not self._host_ok():
                     self._send(403, {"error": "unrecognized Host header"})
+                    return
+                if self._authed() is not True:
+                    self._send(401, {"error": "access code required"})
                     return
                 ctype = self.headers.get("Content-Type", "")
                 if not ctype.startswith("application/json"):

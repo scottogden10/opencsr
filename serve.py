@@ -6,12 +6,15 @@
 """
 
 import argparse
+import os
 
 from opencsr.server import serve
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--backend", default="mock", choices=["mock", "managed"])
+    ap.add_argument("--backend",
+                    default=os.environ.get("OPENCSR_BACKEND", "mock"),
+                    choices=["mock", "managed"])
     ap.add_argument("--db", default="opencsr.db")
     ap.add_argument("--port", type=int, default=8734)
     ap.add_argument("--host", default="127.0.0.1")
