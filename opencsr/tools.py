@@ -21,6 +21,34 @@ from .stats import orr_with_ci
 from .store import Store
 
 
+def _as_dict(item):
+    """Coerce an agent-supplied entry to a dict. Models sometimes pass
+    JSON-encoded strings where the schema says object; parse rather than
+    crash, and return None for anything unusable."""
+    if isinstance(item, dict):
+        return item
+    if isinstance(item, str):
+        try:
+            parsed = json.loads(item)
+            return parsed if isinstance(parsed, dict) else None
+        except (json.JSONDecodeError, ValueError):
+            return None
+    return None
+
+
+def _as_list(value):
+    """Same tolerance for list-valued arguments."""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else [parsed]
+        except (json.JSONDecodeError, ValueError):
+            return []
+    return []
+
+
 def _digest(obj) -> str:
     return "sha256:" + hashlib.sha256(
         json.dumps(obj, sort_keys=True, default=str).encode()).hexdigest()[:16]
@@ -115,8 +143,11 @@ class ToolGateway:
             out = fn(**tool_input)
         except TypeError as e:
             out = {"error": f"Bad arguments for {tool}: {e}"}
-        except (KeyError, ValueError) as e:
-            out = {"error": str(e)}
+        except Exception as e:  # noqa: BLE001 — malformed agent input or a
+            # tool bug must never kill the workflow; it becomes an error
+            # result the agent can react to, and the receipt records it.
+            out = {"error": f"{type(e).__name__}: {e}"}
+            receipt.error = f"{type(e).__name__}: {e}"
         receipt.output_digest = _digest(out)
         self.store.add("receipts", receipt)
         return out
@@ -214,7 +245,13 @@ class ToolGateway:
         agent supplied an `expected` transcription it must match the source
         fragment or the item is rejected (transcription-error guard)."""
         results = []
-        for item in items:
+        for raw in _as_list(items):
+            item = _as_dict(raw)
+            if item is None:
+                results.append({"status": "rejected",
+                                "reason": "each evidence item must be a JSON "
+                                          "object with locator and role"})
+                continue
             loc = item.get("locator", "")
             try:
                 resolved = self.snapshot.resolve(loc)
@@ -254,7 +291,13 @@ class ToolGateway:
         rules = {r["claim_type"]: r for r in self.snapshot.authority["rules"]}
         known_ev = {r["id"]: r for r in self.store.by_task("evidence", self.task_id)}
         results = []
-        for c in claims:
+        for raw in _as_list(claims):
+            c = _as_dict(raw)
+            if c is None:
+                results.append({"status": "rejected",
+                                "reason": "each claim must be a JSON object "
+                                          "(got a non-object entry)"})
+                continue
             support = c.get("support_class", "unsupported")
             if support not in SUPPORT_CLASSES:
                 results.append({"status": "rejected",
@@ -337,6 +380,7 @@ class ToolGateway:
 
     # ------------------------- finalization tools ----------------------- #
     def t_submit_draft(self, text: str, sentence_map: list) -> dict:
+        sentence_map = [d for d in map(_as_dict, _as_list(sentence_map)) if d]
         node = "csr/11.4.1"
         latest = self.store.latest_document(node)
         base_version = latest["version"] if latest else 0
