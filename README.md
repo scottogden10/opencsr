@@ -3,7 +3,7 @@
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/scottogden10/opencsr?quickstart=1)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/scottogden10/opencsr)
 
-**▶ Watch the 2-minute captioned tour: [docs/tour.mp4](docs/tour.mp4)** · live-agents cut: [docs/demo-live.mp4](docs/demo-live.mp4)
+**▶ Watch the tour: [narrated (3:35, 🔊)](docs/tour-narrated.mp4) · [captions-only (1:55)](docs/tour.mp4) · [live-agents cut (1:23)](docs/demo-live.mp4)**
 
 OpenCSR is an open-source, runs-on-your-laptop demonstration of a **clinical
 work operating system**: governed AI agents that turn frozen study sources
