@@ -150,8 +150,15 @@ class App:
 
     def run_climb(self, body: dict) -> dict:
         rounds = int(body.get("rounds", 3))
+        cases = body.get("cases") or None
+        if cases is not None:
+            valid = {"gold_efficacy", "narrative", "capability_probe"} | {
+                f"fault:{f}" for f in FAULTS}
+            cases = [c for c in cases if c in valid]
+            if not cases:
+                return {"error": "no valid cases in scope"}
         job = _start_job("hillclimb", lambda: run_hillclimb(
-            self.store, self.backend, max_rounds=rounds))
+            self.store, self.backend, max_rounds=rounds, cases=cases))
         return {"job_id": job}
 
     def skill_detail(self, name: str) -> dict:

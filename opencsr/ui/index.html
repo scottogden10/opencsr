@@ -344,10 +344,14 @@ function viewClimb(){
         <b>change:</b> ${esc(e.hypothesis.change)}<br>
         <b>predicted effect:</b> ${esc(e.hypothesis.predicted_effect)}</div>`:""}
     </div>`).join("");
+  const live = S.state.backend === "managed";
+  const climbBody = live
+    ? {rounds:1, cases:["gold_efficacy","capability_probe"]}
+    : {rounds:3};
   return `
   <div class="toolbar">
-    <button class="action" onclick="act('/api/hillclimb/run',{rounds:3},'Hill climb started')">Run hill climb</button>
-    <span class="muted small">baseline eval → skill-smith proposes rule candidates from feedback + failures → each candidate replays the full corpus → promoted only if every hard gate holds and the score improves.</span>
+    <button class="action" onclick='act("/api/hillclimb/run",${JSON.stringify(climbBody)},"Hill climb started (${live?"LIVE — scoped to the gold efficacy case; watch session traces in the Anthropic Console":"offline"})")'>Run hill climb${live?" (live)":""}</button>
+    <span class="muted small">baseline eval → skill-smith proposes rule candidates from feedback + failures → each candidate replays the ${live?"scoped":"full"} corpus → promoted only if every hard gate holds and the score improves.${live?" Live mode scopes the corpus to the gold efficacy case (each eval ≈ 4 agent sessions; a full live corpus would be ~100).":""}</span>
   </div>
   <div class="panel"><h2>Score trajectory</h2>${scoreChart(S.state.evals)}</div>
   <div class="panel"><h2>Skill change history (promotions & rejections)</h2>${rows||'<span class="muted">No skill changes yet — run tasks, review them, then run the hill climb.</span>'}</div>`;
