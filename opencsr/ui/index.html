@@ -78,6 +78,28 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
   border-top-color:transparent;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-2px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .hyp{border-left:3px solid var(--accent2);padding:6px 12px;margin:6px 0;background:var(--panel2);border-radius:0 8px 8px 0}
+.chip.actor-human{color:#0f1318;background:var(--warn);border-color:var(--warn);font-weight:700}
+.chip.actor-sim{color:var(--warn);border-color:var(--warn);border-style:dashed}
+.chip.actor-ai{color:var(--accent);border-color:var(--accent2)}
+.chip.actor-rule{color:var(--ink2);border-color:var(--ink3)}
+.chip.final{color:#3ec6bd;border-color:#3ec6bd}
+.progresswrap{background:var(--panel2);border:1px solid var(--line);border-radius:999px;height:12px;overflow:hidden}
+.progressbar{background:var(--good);height:100%;transition:width .6s}
+.secrow{border-bottom:1px solid var(--line);padding:9px 0}
+.secrow .secnum{font-family:ui-monospace,Menlo,monospace;color:var(--accent);width:64px;display:inline-block;font-size:12.5px}
+.secrow summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
+.secrow summary::-webkit-details-marker{display:none}
+.secrow .sectitle{font-weight:600;flex:1}
+.subj{padding:6px 0 6px 74px;border-top:1px dashed var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.subj .who{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.roleflow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 2px;font-size:12px}
+.roleflow .st{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:3px 9px}
+.roleflow .st.human{border-color:var(--warn);color:var(--warn);font-weight:600}
+.roleflow .arrow{color:var(--ink3)}
+.tlftable{font-size:12.5px;margin:8px 0}
+.tlftable th,.tlftable td{padding:4px 8px}
+.queue{border:1px solid var(--warn);border-radius:10px;padding:10px 14px;margin-bottom:12px;background:var(--panel)}
+.queue h3{margin:0 0 6px;font-size:13px;color:var(--warn)}
 a{color:var(--accent);text-decoration:none}
 .toast{position:fixed;bottom:18px;right:18px;background:var(--panel2);border:1px solid var(--line);
   border-radius:10px;padding:10px 14px;font-size:13px;max-width:420px;box-shadow:0 6px 24px rgba(0,0,0,.4)}
@@ -97,8 +119,22 @@ a{color:var(--accent);text-decoration:none}
 
 <script>
 "use strict";
-const TABS = ["Tasks","Evals","Hill climb","Skills","Documents","Audit"];
-let S = {state:null, tab:"Tasks", taskId:null, taskDetail:null, skillDetail:null, polling:false};
+const TABS = ["CSR","Tasks","Evals","Hill climb","Skills","Audit"];
+let S = {state:null, tab:"CSR", taskId:null, taskDetail:null, skillDetail:null, polling:false, tlf:{}};
+
+/* Who did it? Humans, simulated reviewers, AI agents, and the deterministic
+   rule engine each get an unmistakable chip. */
+function actorChip(actor){
+  const a = String(actor||"");
+  if(a.startsWith("human:"))
+    return `<span class="chip actor-human">👤 HUMAN · ${esc(a.slice(6).replace(/_/g," "))}</span>`;
+  if(a.startsWith("sim:"))
+    return `<span class="chip actor-sim">👤 SIMULATED · ${esc(a.slice(4).replace(/_/g," "))}</span>`;
+  if(a === "validator" || a === "runtime" || a === "eval_runner" || a === "hillclimb")
+    return `<span class="chip actor-rule">⚙ ${esc(a==="validator"?"rule engine":a)}</span>`;
+  return `<span class="chip actor-ai">✳ AI · ${esc(a)}</span>`;
+}
+const REVIEW_ROLES = ["Medical Writer","Biostatistician","Clinician","Safety / Pharmacovigilance","Regulatory"];
 
 const $ = (h)=>{const d=document.createElement("div");d.innerHTML=h;return d.firstElementChild;};
 const esc = (s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -159,31 +195,156 @@ function render(){
     `<button class="${t===S.tab?"active":""}" onclick="setTab('${t}')">${t}</button>`).join("");
   const m = document.getElementById("main");
   if(!S.state){ m.innerHTML="Loading…"; return; }
-  if(S.tab==="Tasks") m.innerHTML = S.taskId? viewTaskDetail() : viewTasks();
+  if(S.tab==="CSR") m.innerHTML = S.taskId? viewTaskDetail() : viewCSR();
+  else if(S.tab==="Tasks") m.innerHTML = S.taskId? viewTaskDetail() : viewTasks();
   else if(S.tab==="Evals") m.innerHTML = viewEvals();
   else if(S.tab==="Hill climb") m.innerHTML = viewClimb();
   else if(S.tab==="Skills") m.innerHTML = viewSkills();
-  else if(S.tab==="Documents") m.innerHTML = viewDocs();
   else m.innerHTML = viewAudit();
 }
 function setTab(t){ S.tab=t; if(t!=="Tasks"){S.taskId=null;} render(); }
 async function openTask(id){ S.tab="Tasks"; S.taskId=id; S.taskDetail=await api("/api/tasks/"+id); render(); }
+
+/* ----------------------------- CSR document ---------------------------- */
+function statusChip(st){
+  if(st.state==="populated") return `<span class="chip ok">POPULATED · v${esc(st.version)}</span>`;
+  if(st.state==="in_review") return `<span class="chip open">⏳ AWAITING ${esc((st.reviewer_role||"REVIEWER").toUpperCase())}</span>`;
+  if(st.state==="drafting") return `<span class="chip neutral"><span class="spin"></span> AGENTS DRAFTING</span>`;
+  if(st.state==="final_tlf") return `<span class="chip final">FINAL TLF · LOCKED</span>`;
+  if(st.state==="shell") return `<span class="chip neutral">SHELL (pre-lock)</span>`;
+  if(st.state==="future") return `<span class="chip neutral">NOT YET AUTOMATED</span>`;
+  return `<span class="chip neutral">PENDING</span>`;
+}
+function reviewQueuePanel(){
+  const q = (S.state.csr||{}).review_queue||{};
+  const roles = Object.keys(q);
+  if(!roles.length) return "";
+  return roles.map(role=>`
+    <div class="queue"><h3>👤 Awaiting ${esc(role)} — ${q[role].length} item(s)</h3>
+      ${q[role].map(t=>`<div style="padding:2px 0">
+        ${t.blocking?'<span class="chip err">blocked</span>':'<span class="chip ok">clear</span>'}
+        <a onclick="openTask('${safeId(t.task_id)?t.task_id:""}')">${esc(t.title)}</a>
+        <span class="muted small mono">${esc(t.target_node)}</span></div>`).join("")}
+    </div>`).join("");
+}
+function roleFlowStrip(){
+  return `<div class="roleflow">
+    <span class="st">✳ AI evidence agent</span><span class="arrow">→</span>
+    <span class="st">✳ AI biostatistics agent</span><span class="arrow">→</span>
+    <span class="st">✳ AI medical-writer agent</span><span class="arrow">→</span>
+    <span class="st">⚙ rule engine validates</span><span class="arrow">→</span>
+    <span class="st">✳ AI independent QC</span><span class="arrow">→</span>
+    <span class="st human">👤 HUMAN approves (Medical Writer / Safety-PV)</span>
+  </div>
+  <div class="muted small">Agents only propose. Nothing enters the report below without a named human decision — every populated section shows who approved it.</div>`;
+}
+function viewCSR(){
+  const c = S.state.csr;
+  if(!c) return '<div class="panel">Loading…</div>';
+  const pct = c.progress.total? Math.round(100*c.progress.populated/c.progress.total) : 0;
+  const secs = c.sections.map(sec=>{
+    let body="", chip="", actions="";
+    if(sec.kind==="narratives"){
+      chip = `<span class="chip ${sec.progress.done===sec.progress.total?"ok":"neutral"}">${sec.progress.done}/${sec.progress.total} NARRATIVES</span>`;
+      body = sec.subjects.map(s=>{
+        const canDraft = (s.state==="pending") && safeId(s.usubjid);
+        return `<div class="subj">
+          <span class="who">${esc(s.usubjid)}</span>
+          <span class="muted small">${esc(s.arm)} — ${esc(s.reason)}</span>
+          ${statusChip(s)}
+          ${s.state==="populated"?`<span class="small">approved by ${actorChip(s.updated_by)}</span>
+            <details style="flex-basis:100%"><summary class="small">read narrative v${esc(s.version)}</summary>
+            <div class="draft" style="margin-top:6px">${esc(s.text)}</div></details>`:""}
+          ${s.state==="in_review"?`<button class="action" onclick="openTask('${safeId(s.task_id)?s.task_id:""}')">Review now</button>`:""}
+          ${canDraft?`<button class="ghost" onclick="draftNarrative('${s.usubjid}')">✍ Draft with agents</button>`:""}
+        </div>`;}).join("");
+    } else if(sec.kind && sec.kind.startsWith("authorable")){
+      chip = statusChip(sec);
+      if(sec.state==="populated"){
+        body = `<div class="draft" style="margin:6px 0">${esc(sec.text)}</div>
+          <div class="small">approved by ${actorChip(sec.updated_by)} · ${fmtT(sec.updated_at)} ·
+          task <a onclick="openTask('${safeId(sec.task_id)?sec.task_id:""}')" class="mono">${esc(sec.task_id)}</a></div>
+          ${(sec.history||[]).length>1?`<div class="small muted">history: ${sec.history.map(h=>`v${esc(h.version)} (${actorChip(h.updated_by)})`).join(" · ")}</div>`:""}`;
+        actions = `<button class="ghost" onclick="event.stopPropagation();runTask2('efficacy')">↻ Redraft</button>`;
+      } else if(sec.state==="in_review"){
+        body = `<div class="muted small" style="margin:4px 0">${esc(sec.excerpt||"")}…</div>`;
+        actions = `<button class="action" onclick="event.stopPropagation();openTask('${safeId(sec.task_id)?sec.task_id:""}')">Review now</button>`;
+      } else if(sec.state==="drafting"){
+        body = `<div class="muted small">Agent pipeline running — evidence → claims → draft → validation → QC.</div>`;
+      } else {
+        actions = `<button class="ghost" onclick="event.stopPropagation();runTask2('efficacy')">✍ Draft with agents</button>`;
+      }
+    } else if(sec.kind && sec.kind.startsWith("tlf:")){
+      chip = statusChip(sec);
+      body = `<div class="small muted">${esc(sec.population)} · data cutoff ${esc(sec.data_cutoff)} · produced by statistical programming at final TLF run (26 Jun 2026)</div>
+        <div id="tlf_${sec.table_id.replace(/\./g,"_")}"></div>`;
+    } else if(sec.state==="shell"){
+      chip = statusChip(sec);
+      body = `<div class="muted small" style="margin:4px 0">${esc(sec.text)}</div>`;
+    } else {
+      chip = statusChip(sec);
+    }
+    const tlfToggle = sec.kind && sec.kind.startsWith("tlf:")
+      ? ` ontoggle="loadTLF(event,'${sec.table_id}')"` : "";
+    return `<details class="secrow"${sec.state==="in_review"||sec.kind==="narratives"?" open":""}${tlfToggle}>
+      <summary><span class="secnum">§${esc(sec.section)}</span>
+        <span class="sectitle">${esc(sec.title)}</span>${chip}${actions}</summary>
+      ${body}
+    </details>`;
+  }).join("");
+  return `
+  ${reviewQueuePanel()}
+  <div class="panel">
+    <h2>Clinical Study Report — ${esc(c.study)} (${esc(c.study_name)}) · assembling</h2>
+    <div style="display:flex;align-items:center;gap:12px;margin:4px 0 10px">
+      <div class="progresswrap" style="flex:1"><div class="progressbar" style="width:${pct}%"></div></div>
+      <b>${c.progress.populated}/${c.progress.total}</b><span class="muted small">authorable units populated</span>
+    </div>
+    ${roleFlowStrip()}
+  </div>
+  <div class="panel">${secs}</div>`;
+}
+async function draftNarrative(usubjid){
+  await act("/api/tasks",{type:"narrative", usubjid},"Narrative drafting started for "+usubjid);
+}
+async function runTask2(type){
+  await act("/api/tasks",{type},"Task started ("+type+")");
+}
+async function loadTLF(evt, tableId){
+  if(!evt.target.open || S.tlf[tableId]) return;
+  const t = await api("/api/tlf/"+tableId);
+  S.tlf[tableId] = t;
+  const el = document.getElementById("tlf_"+tableId.replace(/\./g,"_"));
+  if(!el || t.error) return;
+  el.innerHTML = `<div style="overflow-x:auto"><table class="tlftable">
+    <caption style="caption-side:top;text-align:left;padding:4px 0" class="small"><b>${esc(t.table_id)}</b> — ${esc(t.title)} · ${esc(t.population)}</caption>
+    <tr><th></th>${t.columns.map(cn=>`<th>${esc(cn.label)}</th>`).join("")}</tr>
+    ${t.rows.map(r=>`<tr><td>${esc(r.label)}</td>${t.columns.map(cn=>{
+      const cell=r.cells[cn.id]||{};return `<td class="mono">${esc(cell.display??cell.n??"")}</td>`;}).join("")}</tr>`).join("")}
+  </table></div>
+  <div class="small muted">${t.footnotes.map(f=>`${esc(f.id)}. ${esc(f.text)}`).join("<br>")}<br><i>${esc(t.source)}</i></div>`;
+}
 
 /* ------------------------------- tasks -------------------------------- */
 function viewTasks(){
   const st=S.state;
   const faultOpts = ['<option value="">clean run (no fault)</option>']
     .concat(st.faults.map(f=>`<option value="${f}">seeded fault: ${f}</option>`)).join("");
+  const roleByType = {"csr.section.draft":"Medical Writer","csr.narrative.draft":"Safety / Pharmacovigilance"};
   const rows = st.tasks.map(t=>{
     const r=t.result||{};
+    const awaiting = t.status==="pending_review"
+      ? `<span class="chip actor-human">👤 ${esc(roleByType[t.task_type]||"Reviewer")}</span>` : "";
     return `<tr class="click" onclick="openTask('${t.id}')">
       <td class="mono">${t.id}</td>
       <td>${esc(t.title)}${t.config&&t.config.fault_id?` <span class="chip err">fault: ${t.config.fault_id}</span>`:""}</td>
       <td><span class="status-${t.status}">${t.status}</span></td>
+      <td>${awaiting}</td>
       <td>${r.blocking===true?'<span class="chip err">blocked</span>':r.blocking===false?'<span class="chip ok">clear</span>':""}</td>
       <td>${r.revisions??""}</td>
       <td class="muted small">${fmtT(t.created_at)}</td></tr>`;}).join("");
   return `
+  ${reviewQueuePanel()}
   <div class="toolbar">
     <button class="action" onclick="runTask('efficacy')">Run efficacy task (§11.4.1)</button>
     <select id="faultSel">${faultOpts}</select>
@@ -191,8 +352,9 @@ function viewTasks(){
     <span class="spacer" style="flex:1"></span>
     <button class="danger" onclick="resetDemo()">Reset demo</button>
   </div>
+  <div class="panel">${roleFlowStrip()}</div>
   <div class="panel"><h2>Tasks</h2>
-    <table><tr><th>id</th><th>title</th><th>status</th><th>gate</th><th>rev</th><th>created</th></tr>${rows||""}</table>
+    <table><tr><th>id</th><th>title</th><th>status</th><th>awaiting</th><th>gate</th><th>rev</th><th>created</th></tr>${rows||""}</table>
     ${st.tasks.length?"":'<div class="muted" style="padding:10px">No tasks yet — run one above. Each task freezes a source snapshot, runs the agent pipeline (evidence → claims → draft → validate → QC), and stops for human review.</div>'}
   </div>`;
 }
@@ -238,19 +400,22 @@ function viewTaskDetail(){
     <td>${(x.detail&&x.detail.usage&&(x.detail.usage.tool_calls??""))||""}</td>
     <td class="small muted">${esc((x.detail&&x.detail.notes)||"").slice(0,90)}</td></tr>`).join("");
 
-  const fb=d.feedback.map(f=>`<div class="hyp"><b>${esc(f.decision)}</b> · ${esc(f.reason_code)} · scope: ${esc(f.scope)} · <span class="muted">${esc(f.actor)}</span><br><span class="small">${esc(f.comment)}</span></div>`).join("");
+  const fb=d.feedback.map(f=>`<div class="hyp"><b>${esc(f.decision)}</b> · ${esc(f.reason_code)} · scope: ${esc(f.scope)} · ${actorChip(f.actor)}<br><span class="small">${esc(f.comment)}</span></div>`).join("");
 
   const pending = t.status==="pending_review";
+  const requiredRole = t.task_type==="csr.narrative.draft" ? "Safety / Pharmacovigilance" : "Medical Writer";
   const decisionPanel = pending? `
-    <div class="panel"><h2>Human decision</h2>
-      <div class="small muted" style="margin-bottom:8px">${r.blocking?'⚠ Unresolved high-severity issues — acceptance would override open findings.':'No blocking issues.'}</div>
+    <div class="panel" style="border-color:var(--warn)"><h2>👤 Human decision — required reviewer: ${esc(requiredRole)}</h2>
+      <div class="small muted" style="margin-bottom:8px">${r.blocking?'⚠ Unresolved high-severity issues — acceptance would override open findings.':'No blocking issues.'} The agents cannot apply anything; your decision below is what writes the document, under your name, into the audit trail.</div>
       <textarea id="finalText">${esc(prop?.text||"")}</textarea>
       <div class="toolbar" style="margin-top:8px">
+        <label class="small muted">acting as</label>
+        <select id="actingRole">${REVIEW_ROLES.map(x=>`<option ${x===requiredRole?"selected":""}>${x}</option>`).join("")}</select>
         <select id="reason">
           ${["accepted_as_proposed","interpretation_too_strong","wrong_number","wrong_population","style_convention","missing_content","terminology","evidence_insufficient","other"].map(x=>`<option>${x}</option>`).join("")}
         </select>
         <select id="scope"><option>this_instance</option><option>this_study</option><option>organization_wide</option></select>
-        <input type="text" id="comment" placeholder="comment / teaching note" style="flex:1;min-width:220px">
+        <input type="text" id="comment" placeholder="comment / teaching note (feeds the improvement loop)" style="flex:1;min-width:220px">
       </div>
       <div class="toolbar">
         <button class="action" onclick="decide('accepted')">Accept</button>
@@ -274,7 +439,7 @@ function viewTaskDetail(){
     <div class="panel"><h2>Issues (${d.issues.length})</h2>${issues||'<span class="muted">none</span>'}</div>
   </div>
   <div class="cols">
-    <div class="panel"><h2>Agent runs</h2><table><tr><th>agent</th><th>backend</th><th>status</th><th>tools</th><th>notes</th></tr>${runs}</table></div>
+    <div class="panel"><h2>✳ AI agent runs (bounded, tool-gated)</h2><table><tr><th>agent</th><th>backend</th><th>status</th><th>tools</th><th>notes</th></tr>${runs}</table></div>
     <div class="panel"><h2>Feedback</h2>${fb||'<span class="muted">none yet</span>'}
       <h2 style="margin-top:14px">Result</h2><pre>${esc(JSON.stringify(r,null,1))}</pre></div>
   </div>
@@ -283,12 +448,15 @@ function viewTaskDetail(){
   </div>`;
 }
 async function decide(decision){
+  const role=(document.getElementById("actingRole")?.value||"reviewer")
+    .toLowerCase().replace(/[^a-z]+/g,"_").replace(/^_+|_+$/g,"");
   const body={task_id:S.taskId, decision,
+    actor:"human:"+role,
     reason_code:document.getElementById("reason").value,
     scope:document.getElementById("scope").value,
     comment:document.getElementById("comment").value,
     final_text:document.getElementById("finalText").value};
-  await act("/api/review",body,"Decision recorded: "+decision);
+  await act("/api/review",body,"Decision recorded: "+decision+" (as "+role.replace(/_/g," ")+")");
 }
 async function simReview(){
   const r=await act("/api/simulate_review",{task_id:S.taskId},"");
@@ -375,17 +543,6 @@ function viewSkills(){
   </div>${detail}`;
 }
 async function openSkill(name){ S.skillDetail=await api("/api/skills/"+name); render(); }
-
-/* ------------------------------ documents ------------------------------ */
-function viewDocs(){
-  const docs=S.state.documents;
-  const nodes=Object.keys(docs);
-  if(!nodes.length) return '<div class="panel"><h2>Authoritative document versions</h2><div class="muted">No accepted changes yet. Accept a proposal to create version 1 of a section.</div></div>';
-  return nodes.map(n=>`<div class="panel"><h2>${esc(n)}</h2>
-    ${docs[n].map(v=>`<details ${v.version===docs[n].length?"open":""}><summary>v${v.version} · ${fmtT(v.updated_at)} · by ${esc(v.updated_by)} · task <a onclick="openTask('${v.task_id}')" class="mono">${v.task_id}</a></summary>
-    <div class="draft" style="margin-top:6px">${esc(v.text)}</div></details>`).join("")}
-  </div>`).join("");
-}
 
 /* ------------------------------- audit --------------------------------- */
 function viewAudit(){

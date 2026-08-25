@@ -381,6 +381,30 @@ class MockBackend:
         aes = recs["records"].get("ADAE") or []
         ae = next((a for a in aes if a.get("AEOUT") == "FATAL"),
                   next((a for a in aes if a.get("AESER") == "Y"), None))
+        if adsl and not ae and adsl.get("DTHFL") == "Y":
+            # death without an AE record (e.g. disease progression in
+            # follow-up): narrative from the subject-level record alone
+            gw.call("create_evidence", {"items": [
+                {"locator": recs["locators"].get("ADSL",
+                                                 f"dataset://ADSL/subject/{usubjid}"),
+                 "role": "subject_records"}]})
+            sex_word = "female" if adsl.get("SEX") == "F" else "male"
+            cause = adsl.get("DCSREAS", "death").title()
+            s1 = (f"Subject {usubjid}, a {adsl.get('AGE')}-year-old {sex_word} "
+                  f"with an advanced solid tumor harboring an EXM1 activating "
+                  f"mutation, received {adsl.get('TRT01P')} once daily.")
+            s2 = (f"The subject discontinued study treatment due to "
+                  f"{cause.lower()} and died on "
+                  f"{_fmt_date(adsl.get('DTHDT', ''))}.")
+            s3 = (f"The death was attributed to {cause.lower()} and was "
+                  f"assessed by the investigator as not related to examplinib.")
+            text = " ".join([s1, s2, s3])
+            locs = [recs["locators"].get("ADSL", "")]
+            gw.call("submit_narrative", {
+                "usubjid": usubjid, "text": text,
+                "facts_map": [{"sentence": s, "locators": locs}
+                              for s in (s1, s2, s3)]})
+            return f"death narrative drafted for {usubjid}"
         if not adsl or not ae:
             gw.call("raise_issue", {
                 "category": "missing_evidence", "severity": "high",

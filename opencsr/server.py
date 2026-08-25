@@ -30,10 +30,12 @@ class _Server(ThreadingHTTPServer):
         self.server_port = self.server_address[1]
 
 from .agents.backend import get_backend
+from .csrdoc import build_csr_view, narrative_subjects
 from .evals import run_eval_corpus
 from .governance import simulate_review
 from .hillclimb import run_hillclimb
 from .skills import list_skills, reset_skills, load_skill
+from .sources import Snapshot
 from .store import Store
 from .workflow import run_efficacy_task, run_narrative_task, apply_decision
 
@@ -72,6 +74,7 @@ class App:
         self.store = Store(db_path)
         self.backend_name = backend_name
         self._backend = None
+        self.snapshot = Snapshot()  # clean snapshot for views (read-only)
 
     @property
     def backend(self):
@@ -91,6 +94,7 @@ class App:
         return {
             "backend": self.backend_name,
             "faults": FAULTS,
+            "csr": build_csr_view(self.store, self.snapshot),
             "tasks": self.store.list_tasks(),
             "evals": self.store.list_evals(),
             "skills": [{"name": s["name"], "version": s["version"],
@@ -126,8 +130,13 @@ class App:
                 self.store, self.backend, fault_id=fault,
                 title=body.get("title")))
         elif ttype == "narrative":
+            usubjid = body.get("usubjid") or None
+            if usubjid is not None:
+                known = {s["usubjid"] for s in narrative_subjects(self.snapshot)}
+                if usubjid not in known:
+                    return {"error": f"no narrative is required for {usubjid}"}
             job = _start_job("task", lambda: run_narrative_task(
-                self.store, self.backend))
+                self.store, self.backend, usubjid=usubjid))
         else:
             return {"error": f"unknown task type {ttype}"}
         return {"job_id": job}
@@ -140,7 +149,11 @@ class App:
             body.get("actor", "human:reviewer"))
 
     def sim_review(self, body: dict) -> dict:
-        return simulate_review(self.store, body["task_id"])
+        task = self.store.get_task(body["task_id"]) or {}
+        persona = ("sim:pv_reviewer"
+                   if task.get("task_type") == "csr.narrative.draft"
+                   else "sim:medical_writer")
+        return simulate_review(self.store, body["task_id"], persona=persona)
 
     def run_evals(self, body: dict) -> dict:
         label = body.get("label", "manual")
@@ -216,6 +229,11 @@ def make_handler(app: App, allowed_hosts: set[str]):
                     self._send(200, app.state())
                 elif self.path.startswith("/api/tasks/"):
                     self._send(200, app.task_detail(self.path.split("/")[-1]))
+                elif self.path.startswith("/api/tlf/"):
+                    tid = self.path.split("/")[-1]
+                    table = app.snapshot.tables.get(tid)
+                    self._send(200 if table else 404,
+                               table or {"error": f"unknown table {tid}"})
                 elif self.path.startswith("/api/skills/"):
                     self._send(200, app.skill_detail(self.path.split("/")[-1]))
                 else:

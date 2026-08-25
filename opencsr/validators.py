@@ -340,6 +340,34 @@ def validate_narrative(snapshot: Snapshot, text: str, usubjid: str) -> tuple[lis
     if ae is None:
         ae = next((r for r in snapshot.datasets["ADAE"]
                    if r["USUBJID"] == usubjid and r["AESER"] == "Y"), None)
+    if adsl and not ae and adsl.get("DTHFL") == "Y":
+        # Death without an adverse-event record (e.g. disease progression in
+        # follow-up): the narrative is built from ADSL alone, and the
+        # AE-specific elements (grade, action taken) don't apply.
+        facts = {"usubjid": usubjid, "age": adsl["AGE"], "sex": adsl["SEX"],
+                 "arm": adsl["TRT01P"],
+                 "event": adsl.get("DCSREAS", "death").title(),
+                 "grade": "", "action": "", "outcome": "FATAL",
+                 "onset_day": ""}
+        elements = {k: v for k, v in NARRATIVE_ELEMENTS.items()
+                    if k in ("patient identifier", "age and sex",
+                             "study drug and dose", "event term",
+                             "outcome", "causality")}
+        issues = []
+        present = 0
+        for name, fn in elements.items():
+            try:
+                ok = fn(text, facts)
+            except Exception:
+                ok = False
+            if ok:
+                present += 1
+            else:
+                issues.append(_mkissue(
+                    "missing_required_content", "medium",
+                    f"Narrative missing ICH E3 12.3.2 element: {name}.",
+                    {"usubjid": usubjid}))
+        return issues, {"narrative_coverage": round(present / len(elements), 3)}
     if not adsl or not ae:
         return ([_mkissue("missing_evidence", "high",
                           f"No ADSL/ADAE records found for {usubjid}.")],

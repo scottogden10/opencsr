@@ -243,9 +243,12 @@ def run_narrative_task(store: Store, backend, usubjid: str | None = None,
         run_stage(store, backend, task_id, "narrative", brief, snapshot,
                   skills_override, config)
         proposal = _latest_proposal(store, task_id)
-        if proposal is None:
+        if proposal is None or not proposal["text"].strip():
             store.update_task(task_id, status="failed",
-                              result={"error": "no narrative produced"})
+                              result={"error": "no usable narrative produced "
+                                               "(see issues)"})
+            store.audit("task.failed", task_id, {"actor": "runtime"},
+                        {"reason": "empty narrative"})
             return task_id
         issue_dicts, metrics = validate_narrative(snapshot, proposal["text"],
                                                   usubjid)
