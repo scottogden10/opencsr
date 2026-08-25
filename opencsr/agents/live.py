@@ -35,7 +35,7 @@ ENV_NAME = "opencsr-clinical-v1"
 class ManagedBackend:
     name = "managed"
 
-    def __init__(self, model: str | None = None, budget_usd: float = 5.0,
+    def __init__(self, model: str | None = None, budget_usd: float = 2.5,
                  keep_sessions: bool = True, max_reconnects: int = 4,
                  verbose: bool = True):
         try:
@@ -265,6 +265,19 @@ class ManagedBackend:
                 usage = json.loads(u.model_dump_json()) if hasattr(u, "model_dump_json") else dict(u)
         except Exception:  # noqa: BLE001 — usage is best-effort telemetry
             pass
+        # persistent spend meter: one JSONL line per session, survives eval
+        # throwaway ledgers, summed by the workbench header
+        try:
+            lc = (usage.get("list_cost") or {})
+            REGISTRY_PATH.parent.mkdir(exist_ok=True)
+            with open(REGISTRY_PATH.parent / "spend.jsonl", "a") as f:
+                f.write(json.dumps({
+                    "session_id": session.id, "title": title,
+                    "model": self.model,
+                    "list_cost_cents": int(lc.get("amount") or 0),
+                    "tool_calls": state["calls"]}) + "\n")
+        except Exception:  # noqa: BLE001
+            pass
 
         if not self.keep_sessions:
             for _ in range(10):
@@ -289,11 +302,14 @@ class ManagedBackend:
             result = gateway.call(name, tool_input)
             return result, gateway.finished
 
+        from .registry import TOOL_BUDGETS
         budgets = (config or {}).get("budgets", {})
+        cap = min(budgets.get("max_tool_calls", 60),
+                  TOOL_BUDGETS.get(agent_name, 40))
         loop = self._session_loop(
             entry, brief, handler,
             title=f"opencsr {agent_name}: {gateway.task_id}",
-            max_tool_calls=budgets.get("max_tool_calls", 60))
+            max_tool_calls=cap)
         status = "completed" if gateway.finished else loop["status"]
         if status == "completed" and not gateway.finished:
             status = "failed"

@@ -10,6 +10,11 @@ from __future__ import annotations
 
 from ..skills import compile_prompt
 
+# Per-agent tool-call ceilings (live backend): enough to do the job well,
+# not enough to wander. The task-level budget can only lower these.
+TOOL_BUDGETS = {"evidence": 30, "biostat": 30, "writer": 15, "qc": 40,
+                "narrative": 20, "skillsmith": 8}
+
 AGENTS: dict[str, dict] = {
     "evidence": {
         "display": "Evidence agent",

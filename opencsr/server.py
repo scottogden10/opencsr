@@ -91,9 +91,18 @@ class App:
             docs[node] = self.store.document_history(node)
         with _jobs_lock:
             jobs = list(_jobs.values())
+        spend_cents = 0
+        spend_file = Path(__file__).resolve().parent.parent / ".opencsr" / "spend.jsonl"
+        if spend_file.exists():
+            for line in spend_file.read_text().splitlines():
+                try:
+                    spend_cents += int(json.loads(line).get("list_cost_cents", 0))
+                except (json.JSONDecodeError, ValueError, TypeError):
+                    continue
         return {
             "backend": self.backend_name,
             "faults": FAULTS,
+            "live_spend_usd": round(spend_cents / 100, 2),
             "csr": build_csr_view(self.store, self.snapshot),
             "tasks": self.store.list_tasks(),
             "evals": self.store.list_evals(),

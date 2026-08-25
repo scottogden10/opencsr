@@ -160,7 +160,9 @@ function toast(msg){
 }
 async function refresh(){
   S.state = await api("/api/state");
-  document.getElementById("backendBadge").textContent = "backend: "+S.state.backend;
+  const spend = S.state.backend==="managed" && S.state.live_spend_usd
+    ? ` · live spend $${S.state.live_spend_usd.toFixed(2)}` : "";
+  document.getElementById("backendBadge").textContent = "backend: "+S.state.backend+spend;
   const running = S.state.jobs.some(j=>j.status==="running");
   document.getElementById("jobIndicator").innerHTML = running?'<span class="spin"></span> <span class="muted small">working…</span>':"";
   if(S.taskId){ S.taskDetail = await api("/api/tasks/"+S.taskId); }
