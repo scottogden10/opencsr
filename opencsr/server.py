@@ -367,8 +367,13 @@ def make_handler(app: App, allowed_hosts: set[str]):
                                               "application/json"})
                     return
                 origin = self.headers.get("Origin")
-                allowed_origins = {f"http://{h}" for h in allowed_hosts}
-                if origin and origin not in allowed_origins and origin != "null":
+                # both schemes: behind a TLS proxy (Render etc.) the browser
+                # sends https origins while the app itself speaks http
+                allowed_origins = {f"{s}://{h}" for h in allowed_hosts
+                                   for s in ("http", "https")}
+                if (origin and origin != "null"
+                        and "*" not in allowed_hosts
+                        and origin not in allowed_origins):
                     self._send(403, {"error": "cross-origin requests are "
                                               "not allowed"})
                     return
