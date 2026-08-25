@@ -5,6 +5,8 @@
 
 **▶ Watch the tour: [narrated (3:35, 🔊)](docs/tour-narrated.mp4) · [captions-only (1:55)](docs/tour.mp4) · [live-agents cut (1:23)](docs/demo-live.mp4)**
 
+**📊 [CSRBench — the eval report](https://scottogden10.github.io/opencsr/csrbench.html)** — how the framework climbs (offline 68→100) and when it correctly refuses to (live) · [markdown version](docs/EVAL_REPORT.md) · [all reports & media](https://scottogden10.github.io/opencsr/)
+
 OpenCSR is an open-source, runs-on-your-laptop demonstration of a **clinical
 work operating system**: governed AI agents that turn frozen study sources
 (protocol, SAP, ADaM datasets, TLFs) into **evidence-backed, versioned
